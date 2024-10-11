@@ -10,7 +10,7 @@ use crate::{
 };
 use crypto::CryptoError;
 use platform::PlatformError;
-use zerocopy::AsBytes;
+use zerocopy::IntoBytes;
 
 #[cfg_attr(test, derive(PartialEq, Debug, Eq))]
 #[allow(clippy::large_enum_variant)]
@@ -28,24 +28,25 @@ pub enum Response {
 
 impl Response {
     pub fn as_bytes(&self) -> &[u8] {
-        match self {
-            Response::GetProfile(res) => res.as_bytes(),
-            Response::InitCtx(res) => res.as_bytes(),
-            Response::DeriveContext(res) => res.as_bytes(),
-            Response::RotateCtx(res) => res.as_bytes(),
-            Response::CertifyKey(res) => res.as_bytes(),
-            Response::Sign(res) => res.as_bytes(),
-            Response::DestroyCtx(res) => res.as_bytes(),
-            Response::GetCertificateChain(res) => res.as_bytes(),
-            Response::Error(res) => res.as_bytes(),
-        }
+        todo!()
+        //match self {
+        //    Response::GetProfile(res) => res.as_bytes(),
+        //    Response::InitCtx(res) => res.as_bytes(),
+        //    Response::DeriveContext(res) => res.as_bytes(),
+        //    Response::RotateCtx(res) => res.as_bytes(),
+        //    Response::CertifyKey(res) => res.as_bytes(),
+        //    Response::Sign(res) => res.as_bytes(),
+        //    Response::DestroyCtx(res) => res.as_bytes(),
+        //    Response::GetCertificateChain(res) => res.as_bytes(),
+        //    Response::Error(res) => res.as_bytes(),
+        //}
     }
 }
 
 // ABI Response structures
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, zerocopy::AsBytes, zerocopy::FromBytes)]
+#[derive(Debug, PartialEq, Eq, zerocopy::IntoBytes, zerocopy::FromBytes)]
 pub struct ResponseHdr {
     pub magic: u32,
     pub status: u32,
@@ -65,7 +66,7 @@ impl ResponseHdr {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, zerocopy::AsBytes, zerocopy::FromBytes)]
+#[derive(Debug, PartialEq, Eq, zerocopy::IntoBytes, zerocopy::FromBytes)]
 pub struct GetProfileResp {
     pub resp_hdr: ResponseHdr,
     pub major_version: u16,
@@ -95,14 +96,14 @@ impl GetProfileResp {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, zerocopy::AsBytes, zerocopy::FromBytes)]
+#[derive(Debug, PartialEq, Eq, zerocopy::IntoBytes, zerocopy::FromBytes)]
 pub struct NewHandleResp {
     pub resp_hdr: ResponseHdr,
     pub handle: ContextHandle,
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, zerocopy::AsBytes, zerocopy::FromBytes)]
+#[derive(Debug, PartialEq, Eq, zerocopy::IntoBytes, zerocopy::FromBytes)]
 pub struct DeriveContextResp {
     pub resp_hdr: ResponseHdr,
     pub handle: ContextHandle,
@@ -110,7 +111,7 @@ pub struct DeriveContextResp {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, zerocopy::AsBytes, zerocopy::FromBytes)]
+#[derive(Debug, PartialEq, Eq, zerocopy::IntoBytes, zerocopy::FromBytes)]
 pub struct CertifyKeyResp {
     pub resp_hdr: ResponseHdr,
     pub new_context_handle: ContextHandle,
@@ -121,7 +122,7 @@ pub struct CertifyKeyResp {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, zerocopy::AsBytes, zerocopy::FromBytes)]
+#[derive(Debug, PartialEq, Eq, zerocopy::IntoBytes, zerocopy::FromBytes)]
 pub struct SignResp {
     pub resp_hdr: ResponseHdr,
     pub new_context_handle: ContextHandle,
@@ -130,7 +131,7 @@ pub struct SignResp {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, zerocopy::AsBytes, zerocopy::FromBytes)]
+#[derive(Debug, PartialEq, Eq, zerocopy::IntoBytes, zerocopy::FromBytes)]
 pub struct GetCertificateChainResp {
     pub resp_hdr: ResponseHdr,
     pub certificate_size: u32,

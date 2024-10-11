@@ -12,7 +12,7 @@ use {
     dpe::{support::Support, DpeInstance, DPE_PROFILE},
     pem::{encode_config, EncodeConfig, LineEnding, Pem},
     platform::default::DefaultPlatform,
-    zerocopy::AsBytes,
+    zerocopy::IntoBytes,
 };
 
 pub struct TestTypes {}
@@ -30,54 +30,56 @@ fn add_tcb_info(
     data: &[u8; DPE_PROFILE.get_hash_size()],
     tci_type: u32,
 ) {
-    let cmd = DeriveContextCmd {
-        handle: ContextHandle::default(),
-        data: *data,
-        flags: DeriveContextFlags::INPUT_ALLOW_X509 | DeriveContextFlags::MAKE_DEFAULT,
-        tci_type,
-        target_locality: 0, // Unused since flag isn't set
-    };
-    let cmd_body = cmd.as_bytes().to_vec();
-    let cmd_hdr = CommandHdr::new_for_test(dpe::commands::Command::DERIVE_CONTEXT)
-        .as_bytes()
-        .to_vec();
-    let mut command = cmd_hdr;
-    command.extend(cmd_body);
+    todo!()
+    //let cmd = DeriveContextCmd {
+    //    handle: ContextHandle::default(),
+    //    data: *data,
+    //    flags: DeriveContextFlags::INPUT_ALLOW_X509 | DeriveContextFlags::MAKE_DEFAULT,
+    //    tci_type,
+    //    target_locality: 0, // Unused since flag isn't set
+    //};
+    //let cmd_body = cmd.as_bytes().to_vec();
+    //let cmd_hdr = CommandHdr::new_for_test(dpe::commands::Command::DERIVE_CONTEXT)
+    //    .as_bytes()
+    //    .to_vec();
+    //let mut command = cmd_hdr;
+    //command.extend(cmd_body);
 
-    let resp = dpe.execute_serialized_command(env, 0, &command).unwrap();
+    //let resp = dpe.execute_serialized_command(env, 0, &command).unwrap();
 
-    let _ = match resp {
-        // Expect CertifyKey response return an error in all other cases.
-        Response::DeriveContext(res) => res,
-        Response::Error(res) => panic!("Error response {}", res.status),
-        _ => panic!("Unexpected Response"),
-    };
+    //let _ = match resp {
+    //    // Expect CertifyKey response return an error in all other cases.
+    //    Response::DeriveContext(res) => res,
+    //    Response::Error(res) => panic!("Error response {}", res.status),
+    //    _ => panic!("Unexpected Response"),
+    //};
 }
 
 fn certify_key(dpe: &mut DpeInstance, env: &mut DpeEnv<TestTypes>, format: u32) -> Vec<u8> {
-    let certify_key_cmd: CertifyKeyCmd = commands::CertifyKeyCmd {
-        handle: ContextHandle::default(),
-        flags: CertifyKeyFlags::empty(),
-        label: [0; DPE_PROFILE.get_hash_size()],
-        format,
-    };
-    let cmd_body = certify_key_cmd.as_bytes().to_vec();
-    let cmd_hdr = CommandHdr::new_for_test(dpe::commands::Command::CERTIFY_KEY)
-        .as_bytes()
-        .to_vec();
-    let mut command = cmd_hdr;
-    command.extend(cmd_body);
+    todo!()
+   // let certify_key_cmd: CertifyKeyCmd = commands::CertifyKeyCmd {
+   //     handle: ContextHandle::default(),
+   //     flags: CertifyKeyFlags::empty(),
+   //     label: [0; DPE_PROFILE.get_hash_size()],
+   //     format,
+   // };
+   // let cmd_body = certify_key_cmd.as_bytes().to_vec();
+   // let cmd_hdr = CommandHdr::new_for_test(dpe::commands::Command::CERTIFY_KEY)
+   //     .as_bytes()
+   //     .to_vec();
+   // let mut command = cmd_hdr;
+   // command.extend(cmd_body);
 
-    let resp = dpe.execute_serialized_command(env, 0, &command).unwrap();
+   // let resp = dpe.execute_serialized_command(env, 0, &command).unwrap();
 
-    let certify_key_response = match resp {
-        // Expect CertifyKey response return an error in all other cases.
-        Response::CertifyKey(res) => res,
-        Response::Error(res) => panic!("Error response {}", res.status),
-        _ => panic!("Unexpected Response"),
-    };
+   // let certify_key_response = match resp {
+   //     // Expect CertifyKey response return an error in all other cases.
+   //     Response::CertifyKey(res) => res,
+   //     Response::Error(res) => panic!("Error response {}", res.status),
+   //     _ => panic!("Unexpected Response"),
+   // };
 
-    certify_key_response.cert[..certify_key_response.cert_size as usize].to_vec()
+   // certify_key_response.cert[..certify_key_response.cert_size as usize].to_vec()
 }
 
 fn main() {

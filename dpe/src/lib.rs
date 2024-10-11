@@ -23,7 +23,7 @@ use response::GetProfileResp;
 pub mod tci;
 pub mod x509;
 
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{IntoBytes, FromBytes};
 
 const MAX_CERT_SIZE: usize = 2048;
 #[cfg(not(feature = "arbitrary_max_handles"))]
@@ -40,7 +40,7 @@ const INTERNAL_INPUT_INFO_SIZE: usize = size_of::<GetProfileResp>() + size_of::<
 /// A type with u8 backing memory but bool semantics
 /// This is needed to safely serialize booleans in the persisted DPE state
 /// using zerocopy.
-#[derive(Default, AsBytes, FromBytes, Copy, Clone, PartialEq, Eq, Zeroize)]
+#[derive(Default, IntoBytes, FromBytes, Copy, Clone, PartialEq, Eq, Zeroize)]
 #[repr(C, align(1))]
 pub struct U8Bool {
     val: u8,

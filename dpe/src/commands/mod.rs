@@ -84,9 +84,10 @@ impl Command {
         build: impl FnOnce(T) -> Command,
         bytes: &[u8],
     ) -> Result<Command, DpeErrorCode> {
-        Ok(build(
-            T::read_from_prefix(bytes).ok_or(DpeErrorCode::InvalidArgument)?,
-        ))
+        todo!()
+        //Ok(build(
+        //    T::read_from_prefix(bytes).ok_or(DpeErrorCode::InvalidArgument)?,
+        //))
     }
 }
 
@@ -130,7 +131,7 @@ pub trait CommandExecution {
 // ABI Command structures
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, zerocopy::FromBytes, zerocopy::AsBytes)]
+#[derive(Debug, PartialEq, Eq, zerocopy::FromBytes, zerocopy::IntoBytes)]
 pub struct CommandHdr {
     pub magic: u32,
     pub cmd_id: u32,
@@ -153,16 +154,17 @@ impl TryFrom<&[u8]> for CommandHdr {
     type Error = DpeErrorCode;
 
     fn try_from(raw: &[u8]) -> Result<Self, Self::Error> {
-        let header = CommandHdr::read_from_prefix(raw).ok_or(DpeErrorCode::InvalidCommand)?;
-        if header.magic != Self::DPE_COMMAND_MAGIC {
-            return Err(DpeErrorCode::InvalidCommand);
-        }
-        // The client doesn't know what profile is implemented when calling the `GetProfile`
-        // command. But, all other commands should be directed towards the correct profile.
-        if header.cmd_id != Command::GET_PROFILE && header.profile != DPE_PROFILE as u32 {
-            return Err(DpeErrorCode::InvalidCommand);
-        }
-        Ok(header)
+        todo!()
+        //let header = CommandHdr::read_from_prefix(raw).ok_or(DpeErrorCode::InvalidCommand)?;
+        //if header.magic != Self::DPE_COMMAND_MAGIC {
+        //    return Err(DpeErrorCode::InvalidCommand);
+        //}
+        //// The client doesn't know what profile is implemented when calling the `GetProfile`
+        //// command. But, all other commands should be directed towards the correct profile.
+        //if header.cmd_id != Command::GET_PROFILE && header.profile != DPE_PROFILE as u32 {
+        //    return Err(DpeErrorCode::InvalidCommand);
+        //}
+        //Ok(header)
     }
 }
 
@@ -171,7 +173,7 @@ pub mod tests {
     use super::*;
     use crate::{DpeProfile, DPE_PROFILE};
     use caliptra_cfi_lib_git::CfiCounter;
-    use zerocopy::AsBytes;
+    use zerocopy::IntoBytes;
 
     #[cfg(feature = "dpe_profile_p256_sha256")]
     pub const TEST_DIGEST: [u8; DPE_PROFILE.get_hash_size()] = [

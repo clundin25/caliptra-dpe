@@ -24,7 +24,7 @@ use crypto::{Crypto, Digest, Hasher};
 use platform::Platform;
 #[cfg(not(feature = "disable_internal_dice"))]
 use platform::MAX_CHUNK_SIZE;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{IntoBytes, FromBytes};
 use zeroize::Zeroize;
 
 pub trait DpeTypes {
@@ -42,7 +42,7 @@ pub struct DpeEnv<'a, T: DpeTypes + 'a> {
 }
 
 #[repr(C, align(4))]
-#[derive(AsBytes, FromBytes, Zeroize)]
+#[derive(IntoBytes, FromBytes, Zeroize)]
 pub struct DpeInstance {
     pub contexts: [Context; MAX_HANDLES],
     pub(crate) support: Support,
@@ -403,16 +403,16 @@ impl DpeInstance {
     ) -> Result<(), DpeErrorCode> {
         // Internal DPE Info contains get profile response fields as well as the DPE_PROFILE
         let profile = self.get_profile(platform)?;
-        let profile_bytes = profile.as_bytes();
-        internal_input_info
-            .get_mut(..profile_bytes.len())
-            .ok_or(DpeErrorCode::InternalError)?
-            .copy_from_slice(profile_bytes);
+       // let profile_bytes = profile.as_bytes();
+       // internal_input_info
+       //     .get_mut(..profile_bytes.len())
+       //     .ok_or(DpeErrorCode::InternalError)?
+       //     .copy_from_slice(profile_bytes);
 
-        internal_input_info
-            .get_mut(profile_bytes.len()..)
-            .ok_or(DpeErrorCode::InternalError)?
-            .copy_from_slice(&(DPE_PROFILE as u32).to_le_bytes());
+       // internal_input_info
+       //     .get_mut(profile_bytes.len()..)
+       //     .ok_or(DpeErrorCode::InternalError)?
+       //     .copy_from_slice(&(DPE_PROFILE as u32).to_le_bytes());
 
         Ok(())
     }
@@ -440,7 +440,7 @@ impl DpeInstance {
         for status in ChildToRootIter::new(start_idx, &self.contexts) {
             let context = status?;
 
-            hasher.update(context.tci.as_bytes())?;
+            //hasher.update(context.tci.as_bytes())?;
 
             // Check if any context uses internal inputs
             uses_internal_input_info =
@@ -530,7 +530,7 @@ pub mod tests {
     use caliptra_cfi_lib_git::CfiCounter;
     use crypto::OpensslCrypto;
     use platform::default::{DefaultPlatform, AUTO_INIT_LOCALITY, TEST_CERT_CHAIN};
-    use zerocopy::AsBytes;
+    use zerocopy::IntoBytes;
 
     pub struct TestTypes;
     impl DpeTypes for TestTypes {

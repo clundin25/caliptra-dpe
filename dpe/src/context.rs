@@ -1,11 +1,11 @@
 // Licensed under the Apache-2.0 license.
 use crate::{response::DpeErrorCode, tci::TciNodeData, U8Bool, MAX_HANDLES};
 use constant_time_eq::constant_time_eq_16;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{IntoBytes, FromBytes};
 use zeroize::Zeroize;
 
 #[repr(C, align(4))]
-#[derive(AsBytes, FromBytes, Copy, Clone, PartialEq, Eq, Zeroize)]
+#[derive(IntoBytes, FromBytes, Copy, Clone, PartialEq, Eq, Zeroize)]
 pub struct Context {
     pub handle: ContextHandle,
     pub tci: TciNodeData,
@@ -108,7 +108,7 @@ impl Context {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, zerocopy::AsBytes, zerocopy::FromBytes, Zeroize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, zerocopy::IntoBytes, zerocopy::FromBytes, Zeroize)]
 pub struct ContextHandle(pub [u8; ContextHandle::SIZE]);
 
 impl ContextHandle {
@@ -131,7 +131,7 @@ impl ContextHandle {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, AsBytes, FromBytes, Copy, Clone, Zeroize)]
+#[derive(Debug, PartialEq, Eq, IntoBytes, FromBytes, Copy, Clone, Zeroize)]
 #[repr(u8, align(1))]
 #[rustfmt::skip]
 pub enum ContextState {
@@ -144,7 +144,7 @@ pub enum ContextState {
     /// TCI data, but the handle is no longer valid. Because the handle is no longer valid, a client
     /// cannot command it to be destroyed.
     Retired,
-    // These are unused values to allow AsBytes and FromBytes to be able to use the enum.
+    // These are unused values to allow IntoBytes and FromBytes to be able to use the enum.
     _03, _04, _05, _06, _07, _08, _09, _0a, _0b, _0c, _0d, _0e, _0f,
     _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _1a, _1b, _1c, _1d, _1e, _1f,
     _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _2a, _2b, _2c, _2d, _2e, _2f,
@@ -163,7 +163,7 @@ pub enum ContextState {
     _F0, _F1, _F2, _F3, _F4, _F5, _F6, _F7, _F8, _F9, _Fa, _Fb, _Fc, _Fd, _Fe, _Ff,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, AsBytes, FromBytes, Zeroize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, IntoBytes, FromBytes, Zeroize)]
 #[repr(u8, align(1))]
 #[rustfmt::skip]
 pub enum ContextType {
@@ -171,7 +171,7 @@ pub enum ContextType {
     Normal,
     /// Has limitations on what operations can be done.
     Simulation,
-    // These are unused values to allow AsBytes and FromBytes to be able to use the enum.
+    // These are unused values to allow IntoBytes and FromBytes to be able to use the enum.
     _02, _03, _04, _05, _06, _07, _08, _09, _0a, _0b, _0c, _0d, _0e, _0f,
     _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _1a, _1b, _1c, _1d, _1e, _1f,
     _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _2a, _2b, _2c, _2d, _2e, _2f,
