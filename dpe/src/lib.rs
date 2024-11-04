@@ -53,7 +53,7 @@ const INTERNAL_INPUT_INFO_SIZE: usize = size_of::<GetProfileResp>() + size_of::<
     KnownLayout,
     Unaligned,
 )]
-#[repr(C, align(1))]
+#[repr(C)]
 pub struct U8Bool {
     val: u8,
 }
