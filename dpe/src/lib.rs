@@ -23,7 +23,7 @@ use response::GetProfileResp;
 pub mod tci;
 pub mod x509;
 
-use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
 const MAX_CERT_SIZE: usize = 2048;
 #[cfg(not(feature = "arbitrary_max_handles"))]
@@ -41,7 +41,17 @@ const INTERNAL_INPUT_INFO_SIZE: usize = size_of::<GetProfileResp>() + size_of::<
 /// This is needed to safely serialize booleans in the persisted DPE state
 /// using zerocopy.
 #[derive(
-    Default, IntoBytes, FromBytes, Copy, Clone, PartialEq, Eq, Zeroize, Immutable, KnownLayout,
+    Default,
+    IntoBytes,
+    FromBytes,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Zeroize,
+    Immutable,
+    KnownLayout,
+    Unaligned,
 )]
 #[repr(C, align(1))]
 pub struct U8Bool {
