@@ -7,6 +7,7 @@
 
 mod asn1;
 mod pkcs10;
+mod x509;
 
 use crate::x509::asn1::*;
 use crate::x509::pkcs10::*;
@@ -29,6 +30,8 @@ use platform::CertValidity;
 #[cfg(not(feature = "disable_csr"))]
 use platform::SignerIdentifier;
 use platform::{SubjectAltName, MAX_KEY_IDENTIFIER_SIZE};
+
+use zerocopy::AsBytes;
 
 // For errors which come from lower layers, include the error code returned
 // from platform libraries.

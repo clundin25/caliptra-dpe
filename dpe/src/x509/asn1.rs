@@ -196,7 +196,7 @@ impl<'a> RawDerSequenceRef<'a> {
         let len: u32 = header.length.into();
         let offset: u32 = reader.position().into();
 
-        let val = &data.get(offset..offset + len).ok_or(DpeErrorCode::from(X509Error::DerLengthError))?;
+        let val = &data.get((offset as usize)..(offset as usize+ len as usize)).ok_or(DpeErrorCode::from(X509Error::DerLengthError))?;
         
         Ok(Self {
             val,

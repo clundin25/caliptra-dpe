@@ -1,9 +1,12 @@
-use crate::x509::asn1::*;
+use crate::{x509::asn1::*, DPE_PROFILE, MAX_HANDLES};
 use der::{
     asn1::{
         BitStringRef, OctetStringRef, SequenceOf, UintRef, Utf8StringRef},
     Choice, Encode, Sequence};
 use zerocopy::AsBytes;
+use bitflags::bitflags;
+
+use super::pkcs10::AttributeTypeAndValue;
 
 /// TBSCertificate  ::=  SEQUENCE  {
 ///        version         [0]  EXPLICIT Version DEFAULT v1,
@@ -39,8 +42,8 @@ pub type DpeExtensions<'a> = SequenceOf<Extension<'a>, 8>;
 
 #[derive(Sequence)]
 pub struct Validity<'a> {
-    not_before: RawGeneralizedTimeRef<'a>,
-    not_after: RawGeneralizedTimeRef<'a>,
+    pub not_before: RawGeneralizedTimeRef<'a>,
+    pub not_after: RawGeneralizedTimeRef<'a>,
 }
 
 #[derive(Choice)]
@@ -140,9 +143,9 @@ pub struct Ueid<'a> {
 
 #[derive(Sequence)]
 pub struct BasicConstraints {
-    ca: bool,
+    pub ca: bool,
     #[asn1(optional = "true")]
-    pathlen: Option<u64>,
+    pub pathlen: Option<u64>,
 }
 
 // Only supported option for SubjectAltName
@@ -191,7 +194,7 @@ impl<'a> DerTcbInfo<'a> {
 #[derive(Sequence)]
 pub struct AuthorityKeyIdentifier<'a> {
     #[asn1(context_specific = "0", tag_mode = "IMPLICIT", optional = "true")]
-    key_identifier: Option<OctetStringRef<'a>>,
+    pub key_identifier: Option<OctetStringRef<'a>>,
 }
 
 #[derive(AsBytes)]
