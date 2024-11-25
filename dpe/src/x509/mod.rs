@@ -12,6 +12,7 @@ mod x509;
 use crate::x509::asn1::*;
 use crate::x509::pkcs10::*;
 use crate::x509::x509::*;
+pub use crate::x509::x509::DirectoryString;
 use crate::{
     oid,
     DPE_PROFILE,
