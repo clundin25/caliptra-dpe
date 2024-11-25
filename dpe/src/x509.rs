@@ -426,7 +426,7 @@ impl CertWriter<'_> {
             .encoded_len()
             .map_err(|_| X509Error::DerLengthError)?
             .try_into()
-            .unwrap();
+            .map_err(|_| DpeErrorCode::InternalError)?;
         val.encode_to_slice(
             self.certificate
                 .get_mut(self.offset..self.offset + size)
@@ -448,13 +448,11 @@ impl CertWriter<'_> {
             value: DirectoryString::PrintableString(UncheckedPrintableStringRef::new(name.serial)),
         };
 
-        // PANIC FREE: Sets/sequences are fixed size and number of additions are
-        // hard-coded
         let cn_set = FixedSetOf::<AttributeTypeAndValue, 1>::new([cn]);
         let sn_set = FixedSetOf::<AttributeTypeAndValue, 1>::new([sn]);
         let mut rdn = RelativeDistinguishedName::new();
-        rdn.add(cn_set).unwrap();
-        rdn.add(sn_set).unwrap();
+        rdn.add(cn_set).map_err(|_| DpeErrorCode::InternalError)?;
+        rdn.add(sn_set).map_err(|_| DpeErrorCode::InternalError)?;
 
         Ok(rdn)
     }
@@ -530,12 +528,12 @@ impl CertWriter<'_> {
         let mut fwids = asn1::SequenceOf::<DerFwid<'a>, 2>::new();
 
         // fwid[0] current measurement
-        fwids.add(Self::get_fwid(&node.tci_current)?).unwrap();
+        fwids.add(Self::get_fwid(&node.tci_current)?).map_err(|_| DpeErrorCode::InternalError)?;
 
         // fwid[1] journey measurement
         // Omit fwid[1] from tcb_info if DPE_PROFILE does not support recursive
         if supports_recursive {
-            fwids.add(Self::get_fwid(&node.tci_cumulative)?).unwrap();
+            fwids.add(Self::get_fwid(&node.tci_cumulative)?).map_err(|_| DpeErrorCode::InternalError)?;
         }
 
         Ok(DerTcbInfo::new(fwids, node.locality, node.tci_type))
@@ -636,7 +634,7 @@ impl CertWriter<'_> {
 
         // PANIC FREE: Number of additions hard-coded
         let mut eku = ExtendedKeyUsage::new();
-        eku.add(policy_oid).unwrap();
+        eku.add(policy_oid).map_err(|_| DpeErrorCode::InternalError)?;
 
         Ok(Extension {
             oid: OidRef::new(oid::EXTENDED_KEY_USAGE_OID),
@@ -676,8 +674,7 @@ impl CertWriter<'_> {
                         asn1::Utf8StringRef::new(other_name.other_name.as_slice())
                             .map_err(|_| X509Error::Utf8Error)?,
                     ),
-                }))
-                .unwrap();
+                })).map_err(|_| X509Error::RangeError)?;
                 Ok(Extension {
                     oid: OidRef::new(oid::SUBJECT_ALTERNATIVE_NAME_OID),
                     critical: false,
@@ -727,36 +724,35 @@ impl CertWriter<'_> {
         measurements: &'a MeasurementData,
         is_x509: bool,
     ) -> Result<DpeExtensions<'a>, DpeErrorCode> {
-        // PANIC FREE: Number of SequenceOf additions hard-coded
         let mut extensions = DpeExtensions::new();
         extensions
             .add(self.get_multi_tcb_info(measurements)?)
-            .unwrap();
+            .map_err(|_| DpeErrorCode::InternalError)?;
         extensions
             .add(Self::get_extended_key_usage(measurements)?)
-            .unwrap();
-        extensions.add(self.get_ueid(measurements)?).unwrap();
+            .map_err(|_| DpeErrorCode::InternalError)?;
+        extensions.add(self.get_ueid(measurements)?).map_err(|_| DpeErrorCode::InternalError)?;
         extensions
             .add(Self::get_basic_constraints(measurements)?)
-            .unwrap();
+            .map_err(|_| DpeErrorCode::InternalError)?;
         extensions
             .add(Self::get_key_usage(measurements.is_ca)?)
-            .unwrap();
+            .map_err(|_| DpeErrorCode::InternalError)?;
 
         if measurements.is_ca && is_x509 {
             extensions
                 .add(Self::get_subject_key_identifier_extension(measurements)?)
-                .unwrap();
+            .map_err(|_| DpeErrorCode::InternalError)?;
             extensions
                 .add(Self::get_authority_key_identifier_extension(measurements)?)
-                .unwrap();
+            .map_err(|_| DpeErrorCode::InternalError)?;
         }
 
         match &measurements.subject_alt_name {
             Some(SubjectAltName::OtherName(_)) => {
                 extensions
                     .add(Self::get_subject_alt_name_extension(measurements)?)
-                    .unwrap();
+            .map_err(|_| DpeErrorCode::InternalError)?;
             }
             None => { /* do nothing */ }
         }
@@ -806,7 +802,7 @@ impl CertWriter<'_> {
         let signer_infos = FixedSetOf::<SignerInfo, 1>::new([Self::get_signer_info(sig, sid)?]);
         let encap_content_info = EncapContentInfo {
             content_type: OidRef::new(oid::ID_DATA_OID),
-            content: Some(asn1::OctetStringRef::new(csr).unwrap()),
+            content: Some(asn1::OctetStringRef::new(csr).map_err(|_| DpeErrorCode::InternalError)?),
         };
 
         Ok(CmsSignedData {
@@ -948,7 +944,7 @@ impl CertWriter<'_> {
         measurements: &'a MeasurementData,
         validity: &'a CertValidity,
     ) -> Result<usize, DpeErrorCode> {
-        let encoded_pub = pubkey.into();
+        let encoded_pub = pubkey.try_into()?;
         let der_validity = Self::get_validity(validity)?;
         let subject_rdn = Self::get_rdn(subject_name)?;
         let subject_pubkey = Self::get_ecdsa_subject_pubkey_info(&encoded_pub)?;
@@ -1023,7 +1019,7 @@ impl CertWriter<'_> {
         subject_name: &Name,
         measurements: &MeasurementData,
     ) -> Result<usize, DpeErrorCode> {
-        let pub_buf = pub_key.into();
+        let pub_buf = pub_key.try_into()?;
         let csr_info = Pkcs10CsrInfo {
             version: Self::CSR_V0,
             subject: Self::get_rdn(subject_name)?,

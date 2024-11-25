@@ -15,14 +15,15 @@ pub const MAX_ENCODED_ECDSA_PUB: usize = 1 + (2 * CryptoBuf::MAX_SIZE);
 #[derive(ZeroizeOnDrop)]
 pub struct EncodedEcdsaPub(pub ArrayVec<u8, MAX_ENCODED_ECDSA_PUB>);
 
-impl From<&EcdsaPub> for EncodedEcdsaPub {
-    fn from(value: &EcdsaPub) -> Self {
+impl TryFrom<&EcdsaPub> for EncodedEcdsaPub {
+    type Error = CryptoError;
+    fn try_from(value: &EcdsaPub) -> Result<Self, Self::Error> {
         // PANIC FREE: Size of data is same is 1 + x_max + y_max
         let mut encoded = EncodedEcdsaPub(ArrayVec::<u8, MAX_ENCODED_ECDSA_PUB>::new());
         encoded.0.push(0x4);
-        encoded.0.try_extend_from_slice(value.x.bytes()).unwrap();
-        encoded.0.try_extend_from_slice(value.y.bytes()).unwrap();
-        encoded
+        encoded.0.try_extend_from_slice(value.x.bytes()).map_err(|_| CryptoError::Size)?;
+        encoded.0.try_extend_from_slice(value.y.bytes()).map_err(|_| CryptoError::Size)?;
+        Ok(encoded)
     }
 }
 

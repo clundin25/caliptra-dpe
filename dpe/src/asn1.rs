@@ -202,8 +202,10 @@ impl<'a> RawDerSequenceRef<'a> {
             .try_into()
             .map_err(|_| DpeErrorCode::from(X509Error::InvalidRawDer))?;
 
+        let val = &data.get(offset..offset + len).ok_or(DpeErrorCode::from(X509Error::DerLengthError))?;
+        
         Ok(Self {
-            val: &data[offset..offset + len],
+            val,
         })
     }
 }
@@ -243,8 +245,7 @@ impl<'a> UncheckedPrintableStringRef<'a> {
 
 impl<'a> EncodeValue for UncheckedPrintableStringRef<'a> {
     fn value_len(&self) -> Result<Length, der::Error> {
-        // PANIC FREE: Values guaranteed to be less than u16 max
-        Ok(self.s.len().try_into().unwrap())
+        self.s.len().try_into()
     }
 
     fn encode_value(&self, writer: &mut impl Writer) -> Result<(), der::Error> {
@@ -288,8 +289,7 @@ impl EncodeValue for U32OctetString {
 impl<'a> DecodeValue<'a> for U32OctetString {
     fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> Result<Self, der::Error> {
         let val = reader.read_slice(Self::LENGTH.try_into()?)?;
-        // PANIC FREE: val is guaranteed to be 4 bytes
-        Ok(Self(u32::from_be_bytes(val.try_into().unwrap())))
+        Ok(Self(u32::from_be_bytes(val.try_into().map_err(|_| der::Error::new(der::ErrorKind::Failed, Length::new(0)))?)))
     }
 }
 
