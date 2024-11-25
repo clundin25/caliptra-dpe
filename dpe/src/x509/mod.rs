@@ -861,7 +861,7 @@ pub(crate) mod tests {
         let test_key = EcdsaPub::default(DPE_PROFILE.alg_len());
 
         let mut w = CertWriter::new(&mut cert, true);
-        let pub_buf = (&test_key).into();
+        let pub_buf = (&test_key).try_into().unwrap();
         let subject_pubkey = CertWriter::get_ecdsa_subject_pubkey_info(&pub_buf).unwrap();
         let bytes_written = w.encode_der(&subject_pubkey).unwrap();
 
