@@ -22,7 +22,7 @@ import (
 
 	cms "github.com/github/smimesign/ietf-cms"
 
-	"github.com/chipsalliance/caliptra-dpe/verification/client"
+	"github.com/clundin25/caliptra-dpe/verification/client"
 	zx509 "github.com/zmap/zcrypto/x509"
 	zlint "github.com/zmap/zlint/v3"
 	"github.com/zmap/zlint/v3/lint"
