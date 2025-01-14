@@ -2320,8 +2320,6 @@ fn get_subject_key_identifier(
     Ok(())
 }
 
-// TODO(clundin): Remove this lint when adding the DeriveContext certificate generation code.
-#[allow(unused)]
 pub(crate) fn create_exported_dpe_cert(
     args: &CreateDpeCertArgs,
     dpe: &mut DpeInstance,
