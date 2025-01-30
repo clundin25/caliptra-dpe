@@ -1,7 +1,6 @@
 // Licensed under the Apache-2.0 license
 
 use crate::{AlgLen, CryptoError};
-use arrayvec::ArrayVec;
 use zeroize::ZeroizeOnDrop;
 
 /// An ECDSA signature
@@ -28,24 +27,23 @@ impl EcdsaPub {
 
 /// A common base struct that can be used for all digests, signatures, and keys.
 #[derive(Debug, PartialEq, Eq, ZeroizeOnDrop)]
-pub struct CryptoBuf(ArrayVec<u8, { Self::MAX_SIZE }>);
+pub struct CryptoBuf([u8; Self::MAX_SIZE]);
 
 impl CryptoBuf {
     pub const MAX_SIZE: usize = AlgLen::MAX_ALG_LEN_BYTES;
 
     pub fn new(bytes: &[u8]) -> Result<CryptoBuf, CryptoError> {
-        let mut vec = ArrayVec::new();
-        vec.try_extend_from_slice(bytes)
-            .map_err(|_| CryptoError::Size)?;
-        Ok(CryptoBuf(vec))
+        let mut bytes_copy = [0; Self::MAX_SIZE];
+        if bytes_copy.len() <= bytes.len() {
+            bytes_copy[..bytes.len()].copy_from_slice(bytes);
+            Ok(CryptoBuf(bytes_copy))
+        } else {
+            Err(CryptoError::Size)
+        }
     }
 
-    pub fn default(algs: AlgLen) -> CryptoBuf {
-        let mut vec = ArrayVec::new();
-        for _ in 0..algs.size() {
-            vec.push(0);
-        }
-        CryptoBuf(vec)
+    pub fn default(_: AlgLen) -> CryptoBuf {
+        CryptoBuf([0; Self::MAX_SIZE])
     }
 
     pub fn bytes(&self) -> &[u8] {

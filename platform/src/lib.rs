@@ -8,8 +8,6 @@ Abstract:
 #[cfg(feature = "openssl")]
 pub use openssl::x509::X509;
 
-pub use arrayvec::ArrayVec;
-
 #[cfg(any(feature = "openssl", feature = "rustcrypto"))]
 pub mod default;
 
@@ -52,10 +50,10 @@ impl Default for Ueid {
 #[derive(Debug, PartialEq, Eq)]
 pub enum SignerIdentifier {
     IssuerAndSerialNumber {
-        issuer_name: ArrayVec<u8, { MAX_ISSUER_NAME_SIZE }>,
-        serial_number: ArrayVec<u8, { MAX_SN_SIZE }>,
+        issuer_name: [u8; MAX_ISSUER_NAME_SIZE],
+        serial_number: [u8; MAX_SN_SIZE],
     },
-    SubjectKeyIdentifier(ArrayVec<u8, { MAX_KEY_IDENTIFIER_SIZE }>),
+    SubjectKeyIdentifier([u8; MAX_KEY_IDENTIFIER_SIZE]),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -66,13 +64,13 @@ pub enum SubjectAltName {
 #[derive(Debug, PartialEq, Eq)]
 pub struct OtherName {
     pub oid: &'static [u8],
-    pub other_name: ArrayVec<u8, { MAX_OTHER_NAME_SIZE }>,
+    pub other_name: [u8; MAX_OTHER_NAME_SIZE],
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CertValidity {
-    pub not_before: ArrayVec<u8, { MAX_VALIDITY_SIZE }>,
-    pub not_after: ArrayVec<u8, { MAX_VALIDITY_SIZE }>,
+    pub not_before: [u8; MAX_VALIDITY_SIZE],
+    pub not_after: [u8; MAX_VALIDITY_SIZE],
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
