@@ -10,10 +10,12 @@ use crate::{
 };
 use crypto::CryptoError;
 use platform::{PlatformError, MAX_CHUNK_SIZE};
-use zerocopy::IntoBytes;
+use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
+#[derive(TryFromBytes, KnownLayout, Immutable)]
 #[cfg_attr(test, derive(PartialEq, Debug, Eq))]
 #[allow(clippy::large_enum_variant)]
+#[repr(C)]
 pub enum Response {
     GetProfile(GetProfileResp),
     InitCtx(NewHandleResp),
