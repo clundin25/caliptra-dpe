@@ -2,7 +2,7 @@
 use super::CommandExecution;
 use crate::{
     context::{ActiveContextArgs, Context, ContextHandle, ContextType},
-    dpe_instance::{DpeEnv, DpeInstance, DpeTypes},
+    dpe_instance::{DpeEnv, DpeInstance, DpeInstanceFlags, DpeTypes},
     response::{DpeErrorCode, NewHandleResp, Response, ResponseHdr},
 };
 use bitflags::bitflags;
@@ -83,7 +83,7 @@ impl CommandExecution for InitCtxCmd {
             .get_next_inactive_context_pos()
             .ok_or(DpeErrorCode::MaxTcis)?;
         let (context_type, handle) = if self.flag_is_default() {
-            dpe.has_initialized = true.into();
+            dpe.flags.set(DpeInstanceFlags::HAS_INITIALIZED, true);
             (ContextType::Normal, ContextHandle::default())
         } else {
             // Simulation.
@@ -143,7 +143,8 @@ mod tests {
             crypto: OpensslCrypto::new(),
             platform: DefaultPlatform,
         };
-        let mut dpe = DpeInstance::new(&mut env, Support::default()).unwrap();
+        let mut dpe =
+            DpeInstance::new(&mut env, Support::default(), DpeInstanceFlags::empty()).unwrap();
 
         let handle = match InitCtxCmd::new_use_default()
             .execute(&mut dpe, &mut env, TEST_LOCALITIES[0])
@@ -174,7 +175,8 @@ mod tests {
         );
 
         // Change to support simulation.
-        let mut dpe = DpeInstance::new(&mut env, Support::SIMULATION).unwrap();
+        let mut dpe =
+            DpeInstance::new(&mut env, Support::SIMULATION, DpeInstanceFlags::empty()).unwrap();
 
         // Try setting both flags.
         assert_eq!(
