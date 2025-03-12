@@ -12,7 +12,7 @@ use crate::{
     response::{DpeErrorCode, GetProfileResp, Response, ResponseHdr},
     support::Support,
     tci::{TciMeasurement, TciNodeData},
-    DPE_PROFILE, MAX_HANDLES,
+    U8Bool, DPE_PROFILE, MAX_HANDLES,
 };
 use bitflags::bitflags;
 #[cfg(not(feature = "no-cfi"))]
@@ -54,17 +54,12 @@ pub struct DpeEnv<'a, T: DpeTypes + 'a> {
     zerocopy::KnownLayout,
     Zeroize,
 )]
-pub struct DpeInstanceFlags(pub u32);
+pub struct DpeInstanceFlags(pub u16);
 
 bitflags! {
-    impl DpeInstanceFlags: u32 {
-        /// Can only successfully execute the initialize context command for non-simulation (i.e.
-        /// `InitializeContext(simulation=false)`) once per reset cycle.
-        ///
-        /// NOTE: This flag is for internal use only.
-        const HAS_INITIALIZED = 1u32 << 31;
+    impl DpeInstanceFlags: u16 {
         /// Mark DICE extensions as "Critical" in certificates created by `DpeInstance`.
-        const MARK_DICE_EXTENSIONS_CRITICAL = 1u32 << 30;
+        const MARK_DICE_EXTENSIONS_CRITICAL = 1u16 << 15;
     }
 }
 
@@ -75,6 +70,10 @@ pub struct DpeInstance {
     pub contexts: [Context; MAX_HANDLES],
     pub support: Support,
     pub flags: DpeInstanceFlags,
+    /// Can only successfully execute the initialize context command for non-simulation (i.e.
+    /// `InitializeContext(simulation=false)`) once per reset cycle.
+    pub has_initialized: U8Bool,
+    pub _reserved: [u8; 1],
 }
 const _: () = assert!(align_of::<DpeInstance>() == 4);
 
@@ -94,15 +93,14 @@ impl DpeInstance {
         support: Support,
         flags: DpeInstanceFlags,
     ) -> Result<DpeInstance, DpeErrorCode> {
-        let mut flags = flags;
-        flags.set(DpeInstanceFlags::HAS_INITIALIZED, false);
-
         let updated_support = support.preprocess_support();
         const CONTEXT_INITIALIZER: Context = Context::new();
         let mut dpe = DpeInstance {
             contexts: [CONTEXT_INITIALIZER; MAX_HANDLES],
             support: updated_support,
             flags,
+            has_initialized: U8Bool::from(false),
+            _reserved: [0; 1],
         };
 
         if dpe.support.auto_init() {
@@ -159,7 +157,7 @@ impl DpeInstance {
     }
 
     pub fn has_initialized(&self) -> bool {
-        self.flags.contains(DpeInstanceFlags::HAS_INITIALIZED)
+        self.has_initialized.get()
     }
 
     pub fn get_profile(

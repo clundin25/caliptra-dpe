@@ -2,8 +2,9 @@
 use super::CommandExecution;
 use crate::{
     context::{ActiveContextArgs, Context, ContextHandle, ContextType},
-    dpe_instance::{DpeEnv, DpeInstance, DpeInstanceFlags, DpeTypes},
+    dpe_instance::{DpeEnv, DpeInstance, DpeTypes},
     response::{DpeErrorCode, NewHandleResp, Response, ResponseHdr},
+    U8Bool,
 };
 use bitflags::bitflags;
 #[cfg(not(feature = "no-cfi"))]
@@ -83,7 +84,7 @@ impl CommandExecution for InitCtxCmd {
             .get_next_inactive_context_pos()
             .ok_or(DpeErrorCode::MaxTcis)?;
         let (context_type, handle) = if self.flag_is_default() {
-            dpe.flags.set(DpeInstanceFlags::HAS_INITIALIZED, true);
+            dpe.has_initialized = U8Bool::from(true);
             (ContextType::Normal, ContextHandle::default())
         } else {
             // Simulation.
@@ -113,7 +114,10 @@ mod tests {
     use crate::{
         commands::{Command, CommandHdr},
         context::ContextState,
-        dpe_instance::tests::{TestTypes, TEST_LOCALITIES},
+        dpe_instance::{
+            tests::{TestTypes, TEST_LOCALITIES},
+            DpeInstanceFlags,
+        },
         support::Support,
     };
     use caliptra_cfi_lib_git::CfiCounter;

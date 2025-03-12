@@ -607,10 +607,7 @@ pub mod tests {
         );
 
         // active context validation
-        dpe_validator
-            .dpe
-            .flags
-            .set(DpeInstanceFlags::HAS_INITIALIZED, true);
+        dpe_validator.dpe.has_initialized = U8Bool::from(true);
         dpe_validator.dpe.contexts[0].state = ContextState::Active;
         dpe_validator.dpe.contexts[0].parent_idx = 250;
         assert_eq!(
@@ -653,20 +650,14 @@ pub mod tests {
         );
 
         dpe_validator.dpe.contexts[0].parent_idx = Context::ROOT_INDEX;
-        dpe_validator
-            .dpe
-            .flags
-            .set(DpeInstanceFlags::HAS_INITIALIZED, false);
+        dpe_validator.dpe.has_initialized = U8Bool::from(false);
         assert_eq!(
             dpe_validator.validate_dpe_state(),
             Err(ValidationError::DpeNotMarkedInitialized)
         );
 
         // retired context validation
-        dpe_validator
-            .dpe
-            .flags
-            .set(DpeInstanceFlags::HAS_INITIALIZED, true);
+        dpe_validator.dpe.has_initialized = U8Bool::from(true);
         dpe_validator.dpe.contexts[0].parent_idx = Context::ROOT_INDEX;
         dpe_validator.dpe.contexts[0].state = ContextState::Retired;
         assert_eq!(
@@ -696,10 +687,7 @@ pub mod tests {
             dpe: &mut DpeInstance::new(&mut env, Support::empty(), DpeInstanceFlags::empty())
                 .unwrap(),
         };
-        dpe_validator
-            .dpe
-            .flags
-            .set(DpeInstanceFlags::HAS_INITIALIZED, true);
+        dpe_validator.dpe.has_initialized = U8Bool::from(true);
 
         // multiple default contexts in same locality
         dpe_validator.dpe.contexts[0].state = ContextState::Active;
