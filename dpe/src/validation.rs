@@ -38,6 +38,7 @@ pub enum ValidationError {
     ChildDoesNotExist = 0xD,
     InactiveContextWithFlagSet = 0xE,
     LocalityMismatch = 0xF,
+    /// Exported CDIs will not have this condition.
     DanglingRetiredContext = 0x10,
     MixedContextTypeConnectedComponents = 0x11,
     ChildWithMultipleParents = 0x12,
@@ -147,14 +148,6 @@ impl DpeValidator<'_> {
                         cfi_assert!(children_and_parent_check.is_err());
                     }
                     children_and_parent_check?;
-                    // retired contexts must have at least one child context
-                    let child_context_count = flags_iter(context.children, MAX_HANDLES).count();
-                    if cfi_launder(child_context_count) == 0 {
-                        return Err(ValidationError::DanglingRetiredContext);
-                    } else {
-                        #[cfg(not(feature = "no-cfi"))]
-                        cfi_assert_ne(child_context_count, 0);
-                    }
                 }
             }
 
@@ -656,16 +649,8 @@ pub mod tests {
             Err(ValidationError::DpeNotMarkedInitialized)
         );
 
-        // retired context validation
-        dpe_validator.dpe.has_initialized = U8Bool::new(true);
-        dpe_validator.dpe.contexts[0].parent_idx = Context::ROOT_INDEX;
-        dpe_validator.dpe.contexts[0].state = ContextState::Retired;
-        assert_eq!(
-            dpe_validator.validate_dpe_state(),
-            Err(ValidationError::DanglingRetiredContext)
-        );
-
         // locality mismatch
+        dpe_validator.dpe.has_initialized = U8Bool::new(true);
         dpe_validator.dpe.contexts[0].state = ContextState::Active;
         dpe_validator.dpe.contexts[0].context_type = ContextType::Normal;
         dpe_validator.dpe.contexts[0].locality = 0;
