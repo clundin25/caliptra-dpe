@@ -2323,7 +2323,7 @@ fn get_subject_name<'a>(
     subj_serial: &'a mut [u8],
 ) -> Result<Name<'a>, DpeErrorCode> {
     env.crypto
-        .get_pubkey_serial(DPE_PROFILE.alg_len(), pub_key, subj_serial)?;
+        .get_pubkey_serial(DPE_PROFILE.alg(), pub_key, subj_serial)?;
 
     // The serial number of the subject can be at most 64 bytes
     let truncated_subj_serial = &subj_serial[..64];
@@ -2355,7 +2355,7 @@ fn get_subject_key_identifier(
     subject_key_identifier: &mut [u8],
 ) -> Result<(), DpeErrorCode> {
     // compute key identifier as SHA hash of the DER encoded subject public key
-    let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len())?;
+    let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg())?;
     match pub_key {
         ExportedPubKey::Ecdsa(pub_key) => {
             hasher.update(&[0x04])?;
@@ -2429,7 +2429,7 @@ fn create_dpe_cert_or_csr(
     cert_type: CertificateType,
     output_cert_or_csr: &mut [u8],
 ) -> Result<CreateDpeCertResult, DpeErrorCode> {
-    let algs = DPE_PROFILE.alg_len();
+    let algs = DPE_PROFILE.alg();
     let digest = get_dpe_measurement_digest(dpe, env, args.handle, args.locality)?;
 
     let mut exported_cdi_handle = None;
@@ -2528,9 +2528,8 @@ fn create_dpe_cert_or_csr(
                 return Err(DpeErrorCode::InternalError);
             }
             let tbs_digest = env.crypto.hash(algs, &scratch_buf[..bytes_written])?;
-            let Signature::Ecdsa(sig) = env
-                .crypto
-                .sign_with_alias(DPE_PROFILE.alg_len(), &tbs_digest)?;
+            let Signature::Ecdsa(sig) =
+                env.crypto.sign_with_alias(DPE_PROFILE.alg(), &tbs_digest)?;
             let mut cert_writer =
                 CertWriter::new(output_cert_or_csr, args.dice_extensions_are_critical);
             bytes_written =
@@ -2563,9 +2562,8 @@ fn create_dpe_cert_or_csr(
             }
 
             let csr_digest = env.crypto.hash(algs, &csr_buffer[..bytes_written])?;
-            let Signature::Ecdsa(csr_sig) = env
-                .crypto
-                .sign_with_alias(DPE_PROFILE.alg_len(), &csr_digest)?;
+            let Signature::Ecdsa(csr_sig) =
+                env.crypto.sign_with_alias(DPE_PROFILE.alg(), &csr_digest)?;
             let sid = env.platform.get_signer_identifier()?;
 
             let mut cms_writer =
@@ -2730,7 +2728,7 @@ pub(crate) mod tests {
     #[test]
     fn test_subject_pubkey() {
         let mut cert = [0u8; 256];
-        let test_key = EcdsaPub::default(DPE_PROFILE.alg_len());
+        let test_key = EcdsaPub::default(DPE_PROFILE.alg());
 
         let mut w = CertWriter::new(&mut cert, true);
         let bytes_written = w.encode_ecdsa_subject_pubkey_info(&test_key).unwrap();

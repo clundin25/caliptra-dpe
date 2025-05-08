@@ -412,7 +412,7 @@ impl DpeInstance {
         }
 
         // Derive the new TCI as HASH(TCI_CUMULATIVE || INPUT_DATA).
-        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len())?;
+        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg())?;
         hasher.update(&context.tci.tci_cumulative.0)?;
         hasher.update(&measurement.0)?;
         let digest = hasher.finish()?;
@@ -470,7 +470,7 @@ impl DpeInstance {
         env: &mut DpeEnv<impl DpeTypes>,
         start_idx: usize,
     ) -> Result<Digest, DpeErrorCode> {
-        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len())?;
+        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg())?;
 
         let mut uses_internal_input_info = false;
         let mut uses_internal_input_dice = false;
@@ -702,7 +702,7 @@ pub mod tests {
         assert_eq!(data, context.tci.tci_current.0);
 
         // Compute cumulative.
-        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len()).unwrap();
+        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg()).unwrap();
         hasher.update(&[0; DPE_PROFILE.get_hash_size()]).unwrap();
         hasher.update(&data).unwrap();
         let first_cumulative = hasher.finish().unwrap();
@@ -722,7 +722,7 @@ pub mod tests {
         dpe.contexts[0] = context;
         assert_eq!(data, context.tci.tci_current.0);
 
-        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len()).unwrap();
+        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg()).unwrap();
         hasher.update(first_cumulative.bytes()).unwrap();
         hasher.update(&data).unwrap();
         let second_cumulative = hasher.finish().unwrap();
@@ -819,14 +819,14 @@ pub mod tests {
                 .unwrap();
             let curr_cdi = env
                 .crypto
-                .derive_cdi(DPE_PROFILE.alg_len(), &digest, b"DPE")
+                .derive_cdi(DPE_PROFILE.alg(), &digest, b"DPE")
                 .unwrap();
             assert_ne!(last_cdi, curr_cdi);
 
             last_cdi = curr_cdi;
         }
 
-        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len()).unwrap();
+        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg()).unwrap();
         let leaf_idx = dpe
             .get_active_context_pos(&ContextHandle::default(), TEST_LOCALITIES[0])
             .unwrap();
@@ -842,7 +842,7 @@ pub mod tests {
         let digest = hasher.finish().unwrap();
         let answer = env
             .crypto
-            .derive_cdi(DPE_PROFILE.alg_len(), &digest, b"DPE")
+            .derive_cdi(DPE_PROFILE.alg(), &digest, b"DPE")
             .unwrap();
         assert_eq!(answer, last_cdi);
     }
@@ -882,14 +882,14 @@ pub mod tests {
             .unwrap();
         let cdi_with_internal_input_info = env
             .crypto
-            .derive_cdi(DPE_PROFILE.alg_len(), &digest, b"DPE")
+            .derive_cdi(DPE_PROFILE.alg(), &digest, b"DPE")
             .unwrap();
         let parent_context = &dpe.contexts[parent_context_idx];
         let child_context = &dpe.contexts[child_context_idx];
         assert!(child_context.uses_internal_input_info());
         assert!(!parent_context.uses_internal_input_info());
 
-        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len()).unwrap();
+        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg()).unwrap();
 
         hasher.update(child_context.tci.as_bytes()).unwrap();
         hasher.update(/*allow_x509=*/ false.as_bytes()).unwrap();
@@ -906,7 +906,7 @@ pub mod tests {
         let digest = hasher.finish().unwrap();
         let answer = env
             .crypto
-            .derive_cdi(DPE_PROFILE.alg_len(), &digest, b"DPE")
+            .derive_cdi(DPE_PROFILE.alg(), &digest, b"DPE")
             .unwrap();
         assert_eq!(answer, cdi_with_internal_input_info);
     }
@@ -946,14 +946,14 @@ pub mod tests {
             .unwrap();
         let cdi_with_internal_input_dice = env
             .crypto
-            .derive_cdi(DPE_PROFILE.alg_len(), &digest, b"DPE")
+            .derive_cdi(DPE_PROFILE.alg(), &digest, b"DPE")
             .unwrap();
         let parent_context = &dpe.contexts[parent_context_idx];
         let child_context = &dpe.contexts[child_context_idx];
         assert!(child_context.uses_internal_input_dice());
         assert!(!parent_context.uses_internal_input_dice());
 
-        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len()).unwrap();
+        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg()).unwrap();
 
         hasher.update(child_context.tci.as_bytes()).unwrap();
         hasher.update(/*allow_x509=*/ false.as_bytes()).unwrap();
@@ -965,7 +965,7 @@ pub mod tests {
         let digest = hasher.finish().unwrap();
         let answer = env
             .crypto
-            .derive_cdi(DPE_PROFILE.alg_len(), &digest, b"DPE")
+            .derive_cdi(DPE_PROFILE.alg(), &digest, b"DPE")
             .unwrap();
         assert_eq!(answer, cdi_with_internal_input_dice)
     }

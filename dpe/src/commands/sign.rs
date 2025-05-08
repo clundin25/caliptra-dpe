@@ -65,11 +65,11 @@ impl SignCmd {
         idx: usize,
         digest: &Digest,
     ) -> Result<EcdsaSig, DpeErrorCode> {
-        let algs = DPE_PROFILE.alg_len();
+        let algs = DPE_PROFILE.alg();
         let cdi_digest = dpe.compute_measurement_hash(env, idx)?;
         let cdi = env
             .crypto
-            .derive_cdi(DPE_PROFILE.alg_len(), &cdi_digest, b"DPE")?;
+            .derive_cdi(DPE_PROFILE.alg(), &cdi_digest, b"DPE")?;
         let key_pair = env.crypto.derive_key_pair(algs, &cdi, &self.label, b"ECC");
         if cfi_launder(key_pair.is_ok()) {
             #[cfg(not(feature = "no-cfi"))]

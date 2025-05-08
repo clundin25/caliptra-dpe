@@ -177,7 +177,7 @@ mod tests {
         content_info::{CmsVersion, ContentInfo},
         signed_data::{SignedData, SignerIdentifier},
     };
-    use crypto::{AlgLen, Crypto, CryptoBuf, EcdsaPub, ExportedPubKey, OpensslCrypto};
+    use crypto::{Algorithm, Crypto, CryptoBuf, EcdsaAlgorithm, EcdsaPub, ExportedPubKey, OpensslCrypto};
     use der::{Decode, Encode};
     use openssl::{
         bn::BigNum,
@@ -332,9 +332,13 @@ mod tests {
             // validate hash algorithm OID
             assert_eq!(signed_data.digest_algorithms.len(), 1);
             let digest_alg = &signed_data.digest_algorithms.get(0).unwrap();
-            let hash_alg_oid = match DPE_PROFILE.alg_len() {
-                AlgLen::Bit256 => "2.16.840.1.101.3.4.2.1",
-                AlgLen::Bit384 => "2.16.840.1.101.3.4.2.2",
+            let hash_alg_oid = match DPE_PROFILE.alg() {
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => "2.16.840.1.101.3.4.2.1",
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => "2.16.840.1.101.3.4.2.2",
+                #[cfg(feature = "ml-dsa")]
+                Algorithm::MlDsa(_) => {
+                    panic!("TODO(clundin): Add Hash OID for ML-DSA87 profile (SHA-256)?")
+                }
             };
             assert!(digest_alg
                 .assert_algorithm_oid(ObjectIdentifier::new_unwrap(hash_alg_oid))
@@ -360,9 +364,13 @@ mod tests {
                 .is_ok());
 
             // validate signature algorithm OID
-            let sig_alg_oid = match DPE_PROFILE.alg_len() {
-                AlgLen::Bit256 => "1.2.840.10045.4.3.2",
-                AlgLen::Bit384 => "1.2.840.10045.4.3.3",
+            let sig_alg_oid = match DPE_PROFILE.alg() {
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => "1.2.840.10045.4.3.2",
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => "1.2.840.10045.4.3.3",
+                #[cfg(feature = "ml-dsa")]
+                Algorithm::MlDsa(_) => {
+                    panic!("TODO(clundin): Add Signature OID for ML-DSA87 profile (ML-DSA87 OID)?")
+                }
             };
             assert!(signer_info
                 .signature_algorithm
@@ -400,19 +408,19 @@ mod tests {
             let econtent = &econtent_info.econtent.as_mut().unwrap().to_der().unwrap()[4..];
 
             // validate csr signature with the alias key
-            let csr_digest = env.crypto.hash(DPE_PROFILE.alg_len(), econtent).unwrap();
-            let priv_key = match DPE_PROFILE.alg_len() {
-                AlgLen::Bit256 => EcKey::private_key_from_der(include_bytes!(
-                    "../../../platform/src/test_data/key_256.der"
-                )),
-                AlgLen::Bit384 => EcKey::private_key_from_der(include_bytes!(
-                    "../../../platform/src/test_data/key_384.der"
-                )),
+            let csr_digest = env.crypto.hash(DPE_PROFILE.alg(), econtent).unwrap();
+            let priv_key = match DPE_PROFILE.alg() {
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => EcKey::private_key_from_der(include_bytes!( "../../../platform/src/test_data/key_256.der")),
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => EcKey::private_key_from_der(include_bytes!( "../../../platform/src/test_data/key_384.der")),
             }
             .unwrap();
-            let curve = match DPE_PROFILE.alg_len() {
-                AlgLen::Bit256 => Nid::X9_62_PRIME256V1,
-                AlgLen::Bit384 => Nid::SECP384R1,
+            let curve = match DPE_PROFILE.alg() {
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => Nid::X9_62_PRIME256V1,
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => Nid::SECP384R1,
+                #[cfg(feature = "ml-dsa")]
+                Algorithm::MlDsa(_) => {
+                    panic!("TODO(clundin): We should not check the curve when using ML-DSA");
+                }
             };
             let group = &EcGroup::from_curve_name(curve).unwrap();
             let alias_key = EcKey::from_public_key(group, priv_key.public_key()).unwrap();
@@ -442,7 +450,7 @@ mod tests {
             let y = BigNum::from_slice(&pub_key_der[DPE_PROFILE.get_ecc_int_size() + 1..]).unwrap();
             let pub_key = EcKey::from_public_key_affine_coordinates(group, &x, &y).unwrap();
 
-            let cri_digest = env.crypto.hash(DPE_PROFILE.alg_len(), cri.raw).unwrap();
+            let cri_digest = env.crypto.hash(DPE_PROFILE.alg(), cri.raw).unwrap();
             assert!(cri_sig.verify(cri_digest.bytes(), &pub_key).unwrap());
 
             // validate subject_name
@@ -453,7 +461,7 @@ mod tests {
             };
             env.crypto
                 .get_pubkey_serial(
-                    DPE_PROFILE.alg_len(),
+                    DPE_PROFILE.alg(),
                     &ExportedPubKey::Ecdsa(pub_key),
                     &mut subj_serial,
                 )

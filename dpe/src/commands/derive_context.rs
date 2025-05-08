@@ -1070,11 +1070,11 @@ mod tests {
         assert!(dpe.contexts[child_idx].allow_export_cdi());
 
         // check tci_cumulative correctly computed
-        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg_len()).unwrap();
+        let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg()).unwrap();
         hasher.update(&[0u8; DPE_PROFILE.get_hash_size()]).unwrap();
         hasher.update(&[1u8; DPE_PROFILE.get_hash_size()]).unwrap();
         let temp_digest = hasher.finish().unwrap();
-        let mut hasher_2 = env.crypto.hash_initialize(DPE_PROFILE.alg_len()).unwrap();
+        let mut hasher_2 = env.crypto.hash_initialize(DPE_PROFILE.alg()).unwrap();
         hasher_2.update(temp_digest.bytes()).unwrap();
         hasher_2
             .update(&[2u8; DPE_PROFILE.get_hash_size()])
