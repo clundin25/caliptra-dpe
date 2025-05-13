@@ -1,5 +1,6 @@
 // Licensed under the Apache-2.0 license
 
+use crypto::Curve256;
 use dpe::dpe_instance::DpeInstanceFlags;
 use platform::default::DefaultPlatformProfile;
 use std::env;
@@ -21,7 +22,7 @@ use {
 pub struct TestTypes {}
 
 impl DpeTypes for TestTypes {
-    type Crypto<'a> = OpensslCrypto;
+    type Crypto<'a> = OpensslCrypto<Curve256>;
     type Platform<'a> = DefaultPlatform;
 }
 

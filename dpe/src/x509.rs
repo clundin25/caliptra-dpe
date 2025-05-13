@@ -17,8 +17,8 @@ use caliptra_cfi_lib_git::cfi_launder;
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq};
 use crypto::{
-    Algorithm, Crypto, Digest, EcdsaPub, EcdsaPubKey, EcdsaSig, ExportedPubKey, Hasher, Signature,
-    MAX_EXPORTED_CDI_SIZE,
+    Crypto, Digest, EcdsaPub, EcdsaPubKey, EcdsaSig, ExportedPubKey, Hasher, Signature,
+    SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "disable_x509"))]
 use platform::CertValidity;
@@ -2324,8 +2324,7 @@ fn get_subject_name<'a>(
     pub_key: &'a ExportedPubKey,
     subj_serial: &'a mut [u8],
 ) -> Result<Name<'a>, DpeErrorCode> {
-    env.crypto
-        .get_pubkey_serial(DPE_PROFILE.alg(), pub_key, subj_serial)?;
+    env.crypto.get_pubkey_serial(pub_key, subj_serial)?;
 
     // The serial number of the subject can be at most 64 bytes
     let truncated_subj_serial = &subj_serial[..64];
@@ -2353,12 +2352,12 @@ fn get_tci_nodes<'a>(
 
 fn get_subject_key_identifier(
     env: &mut DpeEnv<impl DpeTypes>,
-    alg: Algorithm,
+    alg: SignatureAlgorithm,
     pub_key: &ExportedPubKey,
     subject_key_identifier: &mut [u8],
 ) -> Result<(), DpeErrorCode> {
     // compute key identifier as SHA hash of the DER encoded subject public key
-    let mut hasher = env.crypto.hash_initialize(alg)?;
+    let mut hasher = env.crypto.hash_initialize()?;
     match pub_key {
         ExportedPubKey::Ecdsa(pub_key) => {
             let (x, y) = pub_key
@@ -2442,21 +2441,15 @@ fn create_dpe_cert_or_csr(
 
     let key_pair = match cert_type {
         CertificateType::Exported => {
-            let exported_handle = env
-                .crypto
-                .derive_exported_cdi(algs, &digest, args.cdi_label)?;
+            let exported_handle = env.crypto.derive_exported_cdi(&digest, args.cdi_label)?;
             exported_cdi_handle = Some(exported_handle);
-            env.crypto.derive_key_pair_exported(
-                algs,
-                &exported_handle,
-                args.key_label,
-                args.context,
-            )
+            env.crypto
+                .derive_key_pair_exported(&exported_handle, args.key_label, args.context)
         }
         CertificateType::Leaf => {
-            let cdi = env.crypto.derive_cdi(algs, &digest, args.cdi_label)?;
+            let cdi = env.crypto.derive_cdi(&digest, args.cdi_label)?;
             env.crypto
-                .derive_key_pair(algs, &cdi, args.key_label, args.context)
+                .derive_key_pair(&cdi, args.key_label, args.context)
         }
     };
     if cfi_launder(key_pair.is_ok()) {
@@ -2530,9 +2523,8 @@ fn create_dpe_cert_or_csr(
             if bytes_written > MAX_CERT_SIZE {
                 return Err(DpeErrorCode::InternalError);
             }
-            let tbs_digest = env.crypto.hash(algs, &scratch_buf[..bytes_written])?;
-            let Signature::Ecdsa(sig) =
-                env.crypto.sign_with_alias(DPE_PROFILE.alg(), &tbs_digest)?;
+            let tbs_digest = env.crypto.hash(&scratch_buf[..bytes_written])?;
+            let Signature::Ecdsa(sig) = env.crypto.sign_with_alias(&tbs_digest)?;
             let mut cert_writer =
                 CertWriter::new(output_cert_or_csr, args.dice_extensions_are_critical);
             bytes_written =
@@ -2549,11 +2541,11 @@ fn create_dpe_cert_or_csr(
                 return Err(DpeErrorCode::InternalError);
             }
 
-            let cert_req_info_digest = env.crypto.hash(algs, &scratch_buf[..bytes_written])?;
+            let cert_req_info_digest = env.crypto.hash(&scratch_buf[..bytes_written])?;
             // The PKCS#10 CSR is self-signed so the private key signs it instead of the alias key.
             let Signature::Ecdsa(cert_req_info_sig) =
                 env.crypto
-                    .sign_with_derived(algs, &cert_req_info_digest, &priv_key, &pub_key)?;
+                    .sign_with_derived(&cert_req_info_digest, &priv_key, &pub_key)?;
 
             let mut csr_buffer = [0u8; MAX_CERT_SIZE];
             let mut csr_writer =
@@ -2564,9 +2556,8 @@ fn create_dpe_cert_or_csr(
                 return Err(DpeErrorCode::InternalError);
             }
 
-            let csr_digest = env.crypto.hash(algs, &csr_buffer[..bytes_written])?;
-            let Signature::Ecdsa(csr_sig) =
-                env.crypto.sign_with_alias(DPE_PROFILE.alg(), &csr_digest)?;
+            let csr_digest = env.crypto.hash(&csr_buffer[..bytes_written])?;
+            let Signature::Ecdsa(csr_sig) = env.crypto.sign_with_alias(&csr_digest)?;
             let sid = env.platform.get_signer_identifier()?;
 
             let mut cms_writer =

@@ -1,9 +1,11 @@
 // Licensed under the Apache-2.0 license
 
+use core::marker::PhantomData;
+
 use crate::{
-    hkdf::*, Algorithm, Crypto, CryptoBuf, CryptoError, Digest, EcdsaAlgorithm, EcdsaCurveParams,
+    hkdf::*, Crypto, CryptoBuf, CryptoError, Digest, DpeProfile, EcdsaAlgorithm, EcdsaCurveParams,
     EcdsaPub256, EcdsaPub384, EcdsaPubKey, ExportedCdiHandle, ExportedPubKey, Hasher, Signature,
-    MAX_EXPORTED_CDI_SIZE,
+    SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_derive_git::cfi_impl_fn;
@@ -49,17 +51,24 @@ impl Hasher for OpensslHasher {
 const MAX_CDI_HANDLES: usize = 1;
 
 #[cfg(feature = "deterministic_rand")]
-pub struct OpensslCrypto {
+pub struct OpensslCrypto<T> {
     rng: StdRng,
-    export_cdi_slots: Vec<(<OpensslCrypto as Crypto>::Cdi, ExportedCdiHandle)>,
+    export_cdi_slots: Vec<(<OpensslCrypto<T> as Crypto>::Cdi, ExportedCdiHandle)>,
+    _sig_alg: PhantomData<T>,
 }
 
 #[cfg(not(feature = "deterministic_rand"))]
-pub struct OpensslCrypto {
-    export_cdi_slots: Vec<(<OpensslCrypto as Crypto>::Cdi, ExportedCdiHandle)>,
+pub struct OpensslCrypto<T> {
+    export_cdi_slots: Vec<(<OpensslCrypto<T> as Crypto>::Cdi, ExportedCdiHandle)>,
+    _sig_alg: PhantomData<T>,
 }
 
-impl OpensslCrypto {
+impl<Curve256> DpeProfile for OpensslCrypto<Curve256> {
+    const SIGNATURE_ALGORITHM: SignatureAlgorithm =
+        SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256);
+}
+
+impl<Curve256> OpensslCrypto<Curve256> {
     #[cfg(feature = "deterministic_rand")]
     pub fn new() -> Self {
         const SEED: [u8; 32] = [1; 32];
@@ -67,6 +76,7 @@ impl OpensslCrypto {
         Self {
             rng: seeded_rng,
             export_cdi_slots: Vec::new(),
+            _sig_alg: PhantomData::default(),
         }
     }
 
@@ -74,32 +84,20 @@ impl OpensslCrypto {
     pub fn new() -> Self {
         Self {
             export_cdi_slots: Vec::new(),
+            _sig_alg: PhantomData::default(),
         }
     }
 
-    fn get_digest(algs: Algorithm) -> MessageDigest {
-        match algs {
-            Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => MessageDigest::sha256(),
-            Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => MessageDigest::sha384(),
-            #[cfg(feature = "ml-dsa")]
-            Algorithm::MlDsa(_) => unimplemented!("This module does not yet support ML-DSA!"),
-        }
+    fn get_digest() -> MessageDigest {
+        MessageDigest::sha256()
     }
 
-    fn get_curve(algs: Algorithm) -> Nid {
-        match algs {
-            Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => Nid::X9_62_PRIME256V1,
-            Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => Nid::SECP384R1,
-            #[cfg(feature = "ml-dsa")]
-            Algorithm::MlDsa(_) => panic!("ML-DSA does not use EC curves!"),
-        }
+    fn get_curve() -> Nid {
+        Nid::X9_62_PRIME256V1
     }
 
-    fn ec_key_from_priv_key(
-        algs: Algorithm,
-        priv_key: &OpensslPrivKey,
-    ) -> Result<EcKey<Private>, ErrorStack> {
-        let nid = Self::get_curve(algs);
+    fn ec_key_from_priv_key(priv_key: &OpensslPrivKey) -> Result<EcKey<Private>, ErrorStack> {
+        let nid = Self::get_curve();
         let group = EcGroup::from_curve_name(nid).unwrap();
 
         let mut pub_point = EcPoint::new(&group).unwrap();
@@ -114,21 +112,25 @@ impl OpensslCrypto {
 
     fn derive_key_pair_inner(
         &mut self,
-        algs: Algorithm,
-        cdi: &<OpensslCrypto as Crypto>::Cdi,
+        cdi: &<OpensslCrypto<Curve256> as Crypto>::Cdi,
         label: &[u8],
         info: &[u8],
     ) -> Result<
         (
-            <OpensslCrypto as Crypto>::PrivKey,
-            <OpensslCrypto as Crypto>::PubKey,
+            <OpensslCrypto<Curve256> as Crypto>::PrivKey,
+            <OpensslCrypto<Curve256> as Crypto>::PubKey,
         ),
         CryptoError,
     > {
-        let priv_key = hkdf_get_priv_key(algs, cdi, label, info)?;
+        let priv_key = hkdf_get_priv_key(
+            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256),
+            cdi,
+            label,
+            info,
+        )?;
 
-        let ec_priv_key = OpensslCrypto::ec_key_from_priv_key(algs, &priv_key)?;
-        let nid = OpensslCrypto::get_curve(algs);
+        let ec_priv_key = <OpensslCrypto<Curve256>>::ec_key_from_priv_key(&priv_key)?;
+        let nid = <OpensslCrypto<Curve256>>::get_curve();
 
         let group = EcGroup::from_curve_name(nid).unwrap();
         let mut bn_ctx = BigNumContext::new().unwrap();
@@ -141,40 +143,25 @@ impl OpensslCrypto {
             .affine_coordinates(&group, &mut x, &mut y, &mut bn_ctx)
             .unwrap();
 
-        let pub_key = match algs {
-            Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
-                let x: &[u8; EcdsaPub256::CURVE_SIZE] = &x
-                    .to_vec_padded(EcdsaPub256::CURVE_SIZE as i32)
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-                let y: &[u8; EcdsaPub256::CURVE_SIZE] = &y
-                    .to_vec_padded(EcdsaPub256::CURVE_SIZE as i32)
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-                EcdsaPubKey::Ecdsa256(EcdsaPub256::from_slice(x, y)?)
-            }
-            Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
-                let x: &[u8; EcdsaPub384::CURVE_SIZE] = &x
-                    .to_vec_padded(EcdsaPub384::CURVE_SIZE as i32)
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-                let y: &[u8; EcdsaPub384::CURVE_SIZE] = &y
-                    .to_vec_padded(EcdsaPub384::CURVE_SIZE as i32)
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-                EcdsaPubKey::Ecdsa384(EcdsaPub384::from_slice(x, y)?)
-            }
+        let pub_key = {
+            let x: &[u8; EcdsaPub256::CURVE_SIZE] = &x
+                .to_vec_padded(EcdsaPub256::CURVE_SIZE as i32)
+                .unwrap()
+                .try_into()
+                .unwrap();
+            let y: &[u8; EcdsaPub256::CURVE_SIZE] = &y
+                .to_vec_padded(EcdsaPub256::CURVE_SIZE as i32)
+                .unwrap()
+                .try_into()
+                .unwrap();
+            EcdsaPubKey::Ecdsa256(EcdsaPub256::from_slice(x, y)?)
         };
 
         Ok((priv_key, ExportedPubKey::Ecdsa(pub_key)))
     }
 }
 
-impl Default for OpensslCrypto {
+impl<Curve256> Default for OpensslCrypto<Curve256> {
     fn default() -> Self {
         Self::new()
     }
@@ -185,7 +172,7 @@ type OpensslCdi = Vec<u8>;
 type OpensslPrivKey = CryptoBuf;
 type OpensslPubKey = ExportedPubKey;
 
-impl Crypto for OpensslCrypto {
+impl<Curve256> Crypto for OpensslCrypto<Curve256> {
     type Cdi = OpensslCdi;
     type Hasher<'c>
         = OpensslHasher
@@ -200,35 +187,58 @@ impl Crypto for OpensslCrypto {
         Ok(())
     }
 
+    fn get_pubkey_serial(
+        &mut self,
+        pub_key: &ExportedPubKey,
+        serial: &mut [u8],
+    ) -> Result<(), CryptoError> {
+        if serial.len() < Self::SIGNATURE_ALGORITHM.digest_size() {
+            return Err(CryptoError::Size);
+        }
+
+        let mut hasher = self.hash_initialize()?;
+        let ExportedPubKey::Ecdsa(pub_key) = pub_key;
+        let (x, y) = pub_key.as_slice()?;
+
+        hasher.update(&[0x4u8])?;
+        hasher.update(x)?;
+        hasher.update(y)?;
+        let digest = hasher.finish()?;
+
+        CryptoBuf::write_hex_str(&digest, serial)
+    }
+
     #[cfg(not(feature = "deterministic_rand"))]
     fn rand_bytes(&mut self, dst: &mut [u8]) -> Result<(), CryptoError> {
         Ok(openssl::rand::rand_bytes(dst)?)
     }
 
-    fn hash_initialize(&mut self, algs: Algorithm) -> Result<Self::Hasher<'_>, CryptoError> {
-        let md = Self::get_digest(algs);
+    fn hash_initialize(&mut self) -> Result<Self::Hasher<'_>, CryptoError> {
+        let md = Self::get_digest();
         Ok(OpensslHasher(openssl::hash::Hasher::new(md)?))
     }
 
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
-    fn derive_cdi(
-        &mut self,
-        algs: Algorithm,
-        measurement: &Digest,
-        info: &[u8],
-    ) -> Result<Self::Cdi, CryptoError> {
-        let cdi = hkdf_derive_cdi(algs, measurement, info)?;
+    fn derive_cdi(&mut self, measurement: &Digest, info: &[u8]) -> Result<Self::Cdi, CryptoError> {
+        let cdi = hkdf_derive_cdi(
+            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256),
+            measurement,
+            info,
+        )?;
         Ok(cdi)
     }
 
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
     fn derive_exported_cdi(
         &mut self,
-        algs: Algorithm,
         measurement: &Digest,
         info: &[u8],
     ) -> Result<ExportedCdiHandle, CryptoError> {
-        let cdi = hkdf_derive_cdi(algs, measurement, info)?;
+        let cdi = hkdf_derive_cdi(
+            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256),
+            measurement,
+            info,
+        )?;
 
         for (stored_cdi, _) in self.export_cdi_slots.iter() {
             if *stored_cdi == cdi {
@@ -249,18 +259,16 @@ impl Crypto for OpensslCrypto {
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
     fn derive_key_pair(
         &mut self,
-        algs: Algorithm,
         cdi: &Self::Cdi,
         label: &[u8],
         info: &[u8],
     ) -> Result<(Self::PrivKey, Self::PubKey), CryptoError> {
-        self.derive_key_pair_inner(algs, cdi, label, info)
+        self.derive_key_pair_inner(cdi, label, info)
     }
 
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
     fn derive_key_pair_exported(
         &mut self,
-        algs: Algorithm,
         exported_handle: &ExportedCdiHandle,
         label: &[u8],
         info: &[u8],
@@ -274,68 +282,54 @@ impl Crypto for OpensslCrypto {
             }
             cdi.ok_or(CryptoError::InvalidExportedCdiHandle)
         }?;
-        self.derive_key_pair_inner(algs, &cdi, label, info)
+        self.derive_key_pair_inner(&cdi, label, info)
     }
 
-    fn sign_with_alias(
-        &mut self,
-        algs: Algorithm,
-        digest: &Digest,
-    ) -> Result<Signature, CryptoError> {
-        match algs {
-            Algorithm::Ecdsa(curve) => {
-                let ec_priv: EcKey<Private> =
-                    match curve {
-                        EcdsaAlgorithm::Bit256 => EcKey::private_key_from_pem(include_bytes!(
-                            concat!(env!("OUT_DIR"), "/alias_priv_256.pem")
-                        ))
-                        .unwrap(),
-                        EcdsaAlgorithm::Bit384 => EcKey::private_key_from_pem(include_bytes!(
-                            concat!(env!("OUT_DIR"), "/alias_priv_384.pem")
-                        ))
-                        .unwrap(),
-                    };
-
-                let sig = EcdsaSig::sign::<Private>(digest.bytes(), &ec_priv)?;
-
-                let r = CryptoBuf::new(&sig.r().to_vec_padded(curve.curve_size() as i32).unwrap())
-                    .unwrap();
-                let s = CryptoBuf::new(&sig.s().to_vec_padded(curve.curve_size() as i32).unwrap())
-                    .unwrap();
-
-                Ok(Signature::Ecdsa(super::EcdsaSig { r, s }))
-            }
-            #[cfg(feature = "ml-dsa")]
-            Algorithm::MlDsa(_) => {
-                unimplemented!("This module does not yet support ML-DSA!");
-            }
-        }
+    fn sign_with_alias(&mut self, digest: &Digest) -> Result<Signature, CryptoError> {
+        let ec_priv: EcKey<Private> = EcKey::private_key_from_pem(include_bytes!(concat!(
+            env!("OUT_DIR"),
+            "/alias_priv_256.pem"
+        )))
+        .unwrap();
+        let sig = EcdsaSig::sign::<Private>(digest.bytes(), &ec_priv)?;
+        let r = CryptoBuf::new(
+            &sig.r()
+                .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
+                .unwrap(),
+        )
+        .unwrap();
+        let s = CryptoBuf::new(
+            &sig.s()
+                .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
+                .unwrap(),
+        )
+        .unwrap();
+        Ok(Signature::Ecdsa(super::EcdsaSig { r, s }))
     }
 
     fn sign_with_derived(
         &mut self,
-        algs: Algorithm,
         digest: &Digest,
         priv_key: &Self::PrivKey,
         _pub_key: &Self::PubKey,
     ) -> Result<Signature, CryptoError> {
-        match algs {
-            Algorithm::Ecdsa(curve) => {
-                let ec_priv_key = OpensslCrypto::ec_key_from_priv_key(algs, priv_key)?;
-                let sig = EcdsaSig::sign::<Private>(digest.bytes(), &ec_priv_key).unwrap();
+        let ec_priv_key = <OpensslCrypto<Curve256>>::ec_key_from_priv_key(priv_key)?;
+        let sig = EcdsaSig::sign::<Private>(digest.bytes(), &ec_priv_key).unwrap();
 
-                let r = CryptoBuf::new(&sig.r().to_vec_padded(curve.curve_size() as i32).unwrap())
-                    .unwrap();
-                let s = CryptoBuf::new(&sig.s().to_vec_padded(curve.curve_size() as i32).unwrap())
-                    .unwrap();
+        let r = CryptoBuf::new(
+            &sig.r()
+                .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
+                .unwrap(),
+        )
+        .unwrap();
+        let s = CryptoBuf::new(
+            &sig.s()
+                .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
+                .unwrap(),
+        )
+        .unwrap();
 
-                Ok(Signature::Ecdsa(super::EcdsaSig { r, s }))
-            }
-            #[cfg(feature = "ml-dsa")]
-            Algorithm::MlDsa(_) => {
-                unimplemented!("This module does not yet support ML-DSA!");
-            }
-        }
+        Ok(Signature::Ecdsa(super::EcdsaSig { r, s }))
     }
 
     fn export_public_key(&self, pub_key: &Self::PubKey) -> Result<ExportedPubKey, CryptoError> {

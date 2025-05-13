@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 
-use crate::{Algorithm, CryptoError, EcdsaAlgorithm};
+use crate::{CryptoError, EcdsaAlgorithm, SignatureAlgorithm};
 use arrayvec::ArrayVec;
 use zeroize::ZeroizeOnDrop;
 
@@ -84,7 +84,7 @@ impl Default for CryptoBuf {
 }
 
 impl CryptoBuf {
-    pub const MAX_SIZE: usize = Algorithm::MAX_ALG_LEN_BYTES;
+    pub const MAX_SIZE: usize = SignatureAlgorithm::MAX_ALG_LEN_BYTES;
 
     pub fn new(bytes: &[u8]) -> Result<CryptoBuf, CryptoError> {
         let mut vec = ArrayVec::new();
@@ -146,14 +146,14 @@ mod tests {
         // array length must not exceed MAX_SIZE
         assert_eq!(CryptoBuf::new(arr), Err(CryptoError::Size));
 
-        let arr = &[1u8; Algorithm::Ecdsa(EcdsaAlgorithm::Bit256).signature_size()];
+        let arr = &[1u8; SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256).signature_size()];
         // test new
         match CryptoBuf::new(arr) {
             Ok(buf) => {
                 assert_eq!(arr, buf.bytes());
                 assert_eq!(
                     buf.len(),
-                    Algorithm::Ecdsa(EcdsaAlgorithm::Bit256).signature_size()
+                    SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256).signature_size()
                 );
             }
             Err(_) => panic!("CryptoBuf::new failed"),

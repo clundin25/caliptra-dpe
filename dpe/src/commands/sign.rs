@@ -65,12 +65,9 @@ impl SignCmd {
         idx: usize,
         digest: &Digest,
     ) -> Result<EcdsaSig, DpeErrorCode> {
-        let algs = DPE_PROFILE.alg();
         let cdi_digest = dpe.compute_measurement_hash(env, idx)?;
-        let cdi = env
-            .crypto
-            .derive_cdi(DPE_PROFILE.alg(), &cdi_digest, b"DPE")?;
-        let key_pair = env.crypto.derive_key_pair(algs, &cdi, &self.label, b"ECC");
+        let cdi = env.crypto.derive_cdi(&cdi_digest, b"DPE")?;
+        let key_pair = env.crypto.derive_key_pair(&cdi, &self.label, b"ECC");
         if cfi_launder(key_pair.is_ok()) {
             #[cfg(not(feature = "no-cfi"))]
             cfi_assert!(key_pair.is_ok());
@@ -80,9 +77,7 @@ impl SignCmd {
         }
         let (priv_key, pub_key) = key_pair?;
 
-        let Signature::Ecdsa(sig) = env
-            .crypto
-            .sign_with_derived(algs, digest, &priv_key, &pub_key)?;
+        let Signature::Ecdsa(sig) = env.crypto.sign_with_derived(digest, &priv_key, &pub_key)?;
 
         Ok(sig)
     }

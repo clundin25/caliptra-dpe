@@ -182,8 +182,8 @@ mod tests {
         signed_data::{SignedData, SignerIdentifier},
     };
     use crypto::{
-        Algorithm, Crypto, CryptoBuf, EcdsaAlgorithm, EcdsaPub, EcdsaPubKey, ExportedPubKey,
-        OpensslCrypto,
+        Crypto, CryptoBuf, EcdsaAlgorithm, EcdsaPub, EcdsaPubKey, ExportedPubKey, OpensslCrypto,
+        SignatureAlgorithm,
     };
     use der::{Decode, Encode};
     use openssl::{
@@ -340,10 +340,10 @@ mod tests {
             assert_eq!(signed_data.digest_algorithms.len(), 1);
             let digest_alg = &signed_data.digest_algorithms.get(0).unwrap();
             let hash_alg_oid = match DPE_PROFILE.alg() {
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => "2.16.840.1.101.3.4.2.1",
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => "2.16.840.1.101.3.4.2.2",
+                SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => "2.16.840.1.101.3.4.2.1",
+                SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => "2.16.840.1.101.3.4.2.2",
                 #[cfg(feature = "ml-dsa")]
-                Algorithm::MlDsa(_) => {
+                SignatureAlgorithm::MlDsa(_) => {
                     panic!("TODO(clundin): Add Hash OID for ML-DSA87 profile (SHA-256)?")
                 }
             };
@@ -372,10 +372,10 @@ mod tests {
 
             // validate signature algorithm OID
             let sig_alg_oid = match DPE_PROFILE.alg() {
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => "1.2.840.10045.4.3.2",
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => "1.2.840.10045.4.3.3",
+                SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => "1.2.840.10045.4.3.2",
+                SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => "1.2.840.10045.4.3.3",
                 #[cfg(feature = "ml-dsa")]
-                Algorithm::MlDsa(_) => {
+                SignatureAlgorithm::MlDsa(_) => {
                     panic!("TODO(clundin): Add Signature OID for ML-DSA87 profile (ML-DSA87 OID)?")
                 }
             };
@@ -415,21 +415,21 @@ mod tests {
             let econtent = &econtent_info.econtent.as_mut().unwrap().to_der().unwrap()[4..];
 
             // validate csr signature with the alias key
-            let csr_digest = env.crypto.hash(DPE_PROFILE.alg(), econtent).unwrap();
+            let csr_digest = env.crypto.hash(econtent).unwrap();
             let priv_key = match DPE_PROFILE.alg() {
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => EcKey::private_key_from_der(
+                SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => EcKey::private_key_from_der(
                     include_bytes!("../../../platform/src/test_data/key_256.der"),
                 ),
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => EcKey::private_key_from_der(
+                SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => EcKey::private_key_from_der(
                     include_bytes!("../../../platform/src/test_data/key_384.der"),
                 ),
             }
             .unwrap();
             let curve = match DPE_PROFILE.alg() {
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => Nid::X9_62_PRIME256V1,
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => Nid::SECP384R1,
+                SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => Nid::X9_62_PRIME256V1,
+                SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => Nid::SECP384R1,
                 #[cfg(feature = "ml-dsa")]
-                Algorithm::MlDsa(_) => {
+                SignatureAlgorithm::MlDsa(_) => {
                     panic!("TODO(clundin): We should not check the curve when using ML-DSA");
                 }
             };
@@ -462,7 +462,7 @@ mod tests {
             let y = BigNum::from_slice(&pub_key_der[DPE_PROFILE.get_ecc_int_size() + 1..]).unwrap();
             let pub_key = EcKey::from_public_key_affine_coordinates(group, &x, &y).unwrap();
 
-            let cri_digest = env.crypto.hash(DPE_PROFILE.alg(), cri.raw).unwrap();
+            let cri_digest = env.crypto.hash(cri.raw).unwrap();
             assert!(cri_sig.verify(cri_digest.bytes(), &pub_key).unwrap());
 
             // validate subject_name
@@ -474,7 +474,6 @@ mod tests {
             .unwrap();
             env.crypto
                 .get_pubkey_serial(
-                    DPE_PROFILE.alg(),
                     &ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa256(pub_key)),
                     &mut subj_serial,
                 )
