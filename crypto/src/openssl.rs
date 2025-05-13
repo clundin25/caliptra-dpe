@@ -1,8 +1,9 @@
 // Licensed under the Apache-2.0 license
 
 use crate::{
-    hkdf::*, Algorithm, Crypto, CryptoBuf, CryptoError, Digest, EcdsaAlgorithm, EcdsaPub,
-    ExportedCdiHandle, ExportedPubKey, Hasher, Signature, MAX_EXPORTED_CDI_SIZE,
+    hkdf::*, Algorithm, Crypto, CryptoBuf, CryptoError, Digest, EcdsaAlgorithm, EcdsaCurveParams,
+    EcdsaPub256, EcdsaPub384, EcdsaPubKey, ExportedCdiHandle, ExportedPubKey, Hasher, Signature,
+    MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_derive_git::cfi_impl_fn;
@@ -117,7 +118,13 @@ impl OpensslCrypto {
         cdi: &<OpensslCrypto as Crypto>::Cdi,
         label: &[u8],
         info: &[u8],
-    ) -> Result<(<OpensslCrypto as Crypto>::PrivKey, EcdsaPub), CryptoError> {
+    ) -> Result<
+        (
+            <OpensslCrypto as Crypto>::PrivKey,
+            <OpensslCrypto as Crypto>::PubKey,
+        ),
+        CryptoError,
+    > {
         let priv_key = hkdf_get_priv_key(algs, cdi, label, info)?;
 
         let ec_priv_key = OpensslCrypto::ec_key_from_priv_key(algs, &priv_key)?;
@@ -134,10 +141,36 @@ impl OpensslCrypto {
             .affine_coordinates(&group, &mut x, &mut y, &mut bn_ctx)
             .unwrap();
 
-        let x = CryptoBuf::new(&x.to_vec_padded(algs.signature_size() as i32).unwrap()).unwrap();
-        let y = CryptoBuf::new(&y.to_vec_padded(algs.signature_size() as i32).unwrap()).unwrap();
+        let pub_key = match algs {
+            Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
+                let x: &[u8; EcdsaPub256::CURVE_SIZE] = &x
+                    .to_vec_padded(algs.signature_size() as i32)
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+                let y: &[u8; EcdsaPub256::CURVE_SIZE] = &y
+                    .to_vec_padded(algs.signature_size() as i32)
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+                EcdsaPubKey::Ecdsa256(EcdsaPub256::from_slice(x, y)?)
+            }
+            Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
+                let x: &[u8; EcdsaPub384::CURVE_SIZE] = &x
+                    .to_vec_padded(algs.signature_size() as i32)
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+                let y: &[u8; EcdsaPub384::CURVE_SIZE] = &y
+                    .to_vec_padded(algs.signature_size() as i32)
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+                EcdsaPubKey::Ecdsa384(EcdsaPub384::from_slice(x, y)?)
+            }
+        };
 
-        Ok((priv_key, EcdsaPub { x, y }))
+        Ok((priv_key, ExportedPubKey::Ecdsa(pub_key)))
     }
 }
 
@@ -150,7 +183,7 @@ impl Default for OpensslCrypto {
 type OpensslCdi = Vec<u8>;
 
 type OpensslPrivKey = CryptoBuf;
-type OpensslPubKey = EcdsaPub;
+type OpensslPubKey = ExportedPubKey;
 
 impl Crypto for OpensslCrypto {
     type Cdi = OpensslCdi;
@@ -220,7 +253,7 @@ impl Crypto for OpensslCrypto {
         cdi: &Self::Cdi,
         label: &[u8],
         info: &[u8],
-    ) -> Result<(Self::PrivKey, EcdsaPub), CryptoError> {
+    ) -> Result<(Self::PrivKey, Self::PubKey), CryptoError> {
         self.derive_key_pair_inner(algs, cdi, label, info)
     }
 
@@ -231,7 +264,7 @@ impl Crypto for OpensslCrypto {
         exported_handle: &ExportedCdiHandle,
         label: &[u8],
         info: &[u8],
-    ) -> Result<(Self::PrivKey, EcdsaPub), CryptoError> {
+    ) -> Result<(Self::PrivKey, Self::PubKey), CryptoError> {
         let cdi = {
             let mut cdi = None;
             for (stored_cdi, stored_handle) in self.export_cdi_slots.iter() {
@@ -284,7 +317,7 @@ impl Crypto for OpensslCrypto {
         algs: Algorithm,
         digest: &Digest,
         priv_key: &Self::PrivKey,
-        _pub_key: &EcdsaPub,
+        _pub_key: &Self::PubKey,
     ) -> Result<Signature, CryptoError> {
         match algs {
             Algorithm::Ecdsa(curve) => {
@@ -306,10 +339,6 @@ impl Crypto for OpensslCrypto {
     }
 
     fn export_public_key(&self, pub_key: &Self::PubKey) -> Result<ExportedPubKey, CryptoError> {
-        let EcdsaPub { x, y } = pub_key;
-        Ok(ExportedPubKey::Ecdsa(EcdsaPub {
-            x: CryptoBuf::new(x.bytes())?,
-            y: CryptoBuf::new(y.bytes())?,
-        }))
+        Ok(pub_key.clone())
     }
 }

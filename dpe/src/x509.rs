@@ -17,7 +17,8 @@ use caliptra_cfi_lib_git::cfi_launder;
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq};
 use crypto::{
-    Crypto, Digest, EcdsaPub, EcdsaSig, ExportedPubKey, Hasher, Signature, MAX_EXPORTED_CDI_SIZE,
+    Algorithm, Crypto, Digest, EcdsaPub, EcdsaPubKey, EcdsaSig, ExportedPubKey, Hasher, Signature,
+    MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "disable_x509"))]
 use platform::CertValidity;
@@ -305,10 +306,10 @@ impl CertWriter<'_> {
     /// Calculate the number of bytes an ECC SubjectPublicKeyInfo will be
     /// If `tagged`, include the tag and size fields
     fn get_ecdsa_subject_pubkey_info_size(
-        pubkey: &EcdsaPub,
+        pubkey: &EcdsaPubKey,
         tagged: bool,
     ) -> Result<usize, DpeErrorCode> {
-        let point_size = 1 + pubkey.x.len() + pubkey.y.len();
+        let point_size = 1 + pubkey.curve_size() + pubkey.curve_size();
         let bitstring_size = 1 + point_size;
         let seq_size = Self::get_structure_size(bitstring_size, /*tagged=*/ true)?
             + Self::get_ec_pub_alg_id_size(/*tagged=*/ true)?;
@@ -617,7 +618,7 @@ impl CertWriter<'_> {
         serial_number: &[u8],
         issuer_der: &[u8],
         subject_name: &Name,
-        pubkey: &EcdsaPub,
+        pubkey: &EcdsaPubKey,
         measurements: &MeasurementData,
         validity: &CertValidity,
         tagged: bool,
@@ -1104,9 +1105,9 @@ impl CertWriter<'_> {
     /// Returns number of bytes written to `certificate`
     fn encode_ecdsa_subject_pubkey_info(
         &mut self,
-        pubkey: &EcdsaPub,
+        pub_key: &EcdsaPubKey,
     ) -> Result<usize, DpeErrorCode> {
-        let point_size = 1 + pubkey.x.len() + pubkey.y.len();
+        let point_size = 1 + pub_key.curve_size() + pub_key.curve_size();
         let bitstring_size = 1 + point_size;
         let seq_size = Self::get_structure_size(bitstring_size, /*tagged=*/ true)?
             + Self::get_ec_pub_alg_id_size(/*tagged=*/ true)?;
@@ -1122,8 +1123,9 @@ impl CertWriter<'_> {
         bytes_written += self.encode_byte(0)?;
 
         bytes_written += self.encode_byte(0x4)?;
-        bytes_written += self.encode_bytes(pubkey.x.bytes())?;
-        bytes_written += self.encode_bytes(pubkey.y.bytes())?;
+        let (x, y) = pub_key.as_slice()?;
+        bytes_written += self.encode_bytes(x)?;
+        bytes_written += self.encode_bytes(y)?;
 
         Ok(bytes_written)
     }
@@ -2070,7 +2072,7 @@ impl CertWriter<'_> {
         serial_number: &[u8],
         issuer_name: &[u8],
         subject_name: &Name,
-        pubkey: &EcdsaPub,
+        pubkey: &EcdsaPubKey,
         measurements: &MeasurementData,
         validity: &CertValidity,
     ) -> Result<usize, DpeErrorCode> {
@@ -2351,16 +2353,20 @@ fn get_tci_nodes<'a>(
 
 fn get_subject_key_identifier(
     env: &mut DpeEnv<impl DpeTypes>,
+    alg: Algorithm,
     pub_key: &ExportedPubKey,
     subject_key_identifier: &mut [u8],
 ) -> Result<(), DpeErrorCode> {
     // compute key identifier as SHA hash of the DER encoded subject public key
-    let mut hasher = env.crypto.hash_initialize(DPE_PROFILE.alg())?;
+    let mut hasher = env.crypto.hash_initialize(alg)?;
     match pub_key {
         ExportedPubKey::Ecdsa(pub_key) => {
+            let (x, y) = pub_key
+                .as_slice()
+                .map_err(|_| DpeErrorCode::InternalError)?;
             hasher.update(&[0x04])?;
-            hasher.update(pub_key.x.bytes())?;
-            hasher.update(pub_key.y.bytes())?;
+            hasher.update(x)?;
+            hasher.update(y)?;
         }
     }
 
@@ -2471,7 +2477,7 @@ fn create_dpe_cert_or_csr(
     let tci_nodes = get_tci_nodes(dpe, args.handle, args.locality, &mut nodes)?;
 
     let mut subject_key_identifier = [0u8; MAX_KEY_IDENTIFIER_SIZE];
-    get_subject_key_identifier(env, &exported_pub_key, &mut subject_key_identifier)?;
+    get_subject_key_identifier(env, algs, &exported_pub_key, &mut subject_key_identifier)?;
 
     let mut authority_key_identifier = [0u8; MAX_KEY_IDENTIFIER_SIZE];
     env.platform
@@ -2511,19 +2517,16 @@ fn create_dpe_cert_or_csr(
             if issuer_len > MAX_ISSUER_NAME_SIZE {
                 return Err(DpeErrorCode::InternalError);
             }
+            let ExportedPubKey::Ecdsa(ref exported_pub_key) = exported_pub_key;
             let cert_validity = env.platform.get_cert_validity()?;
-            let mut bytes_written = match exported_pub_key {
-                ExportedPubKey::Ecdsa(ref pub_key) => {
-                    scratch_writer.encode_ecdsa_tbs(
-                        &subject_name.serial.bytes()[..20], // Serial number must be truncated to 20 bytes
-                        &issuer_name[..issuer_len],
-                        &subject_name,
-                        pub_key,
-                        &measurements,
-                        &cert_validity,
-                    )?
-                }
-            };
+            let mut bytes_written = scratch_writer.encode_ecdsa_tbs(
+                &subject_name.serial.bytes()[..20], // Serial number must be truncated to 20 bytes
+                &issuer_name[..issuer_len],
+                &subject_name,
+                &exported_pub_key,
+                &measurements,
+                &cert_validity,
+            )?;
             if bytes_written > MAX_CERT_SIZE {
                 return Err(DpeErrorCode::InternalError);
             }
@@ -2591,7 +2594,7 @@ pub(crate) mod tests {
     use crate::tci::{TciMeasurement, TciNodeData};
     use crate::x509::{CertWriter, DirectoryString, MeasurementData, Name};
     use crate::{DpeProfile, DPE_PROFILE};
-    use crypto::{CryptoBuf, EcdsaPub, EcdsaSig};
+    use crypto::{CryptoBuf, EcdsaPub, EcdsaSig, ExportedPubKey};
     use openssl::hash::{Hasher, MessageDigest};
     use platform::{ArrayVec, CertValidity, OtherName, SubjectAltName, MAX_KEY_IDENTIFIER_SIZE};
     use std::str;
@@ -2728,7 +2731,7 @@ pub(crate) mod tests {
     #[test]
     fn test_subject_pubkey() {
         let mut cert = [0u8; 256];
-        let test_key = EcdsaPub::default(DPE_PROFILE.alg());
+        let test_key = EcdsaPub::default();
 
         let mut w = CertWriter::new(&mut cert, true);
         let bytes_written = w.encode_ecdsa_subject_pubkey_info(&test_key).unwrap();
@@ -2919,10 +2922,7 @@ pub(crate) mod tests {
         let mut issuer_writer = CertWriter::new(&mut issuer_der, true);
         let issuer_len = issuer_writer.encode_rdn(&TEST_ISSUER_NAME).unwrap();
 
-        let test_pub = EcdsaPub {
-            x: CryptoBuf::new(&[0xAA; ECC_INT_SIZE]).unwrap(),
-            y: CryptoBuf::new(&[0xBB; ECC_INT_SIZE]).unwrap(),
-        };
+        let test_pub = EcdsaPub::from_slice(&[0xAA; ECC_INT_SIZE], &[0xBB; ECC_INT_SIZE]).unwrap();
 
         let node = TciNodeData::new();
 
@@ -2930,9 +2930,10 @@ pub(crate) mod tests {
             DpeProfile::P256Sha256 => Hasher::new(MessageDigest::sha256()).unwrap(),
             DpeProfile::P384Sha384 => Hasher::new(MessageDigest::sha384()).unwrap(),
         };
+        let (x, y) = test_pub.as_slice().unwrap();
         hasher.update(&[0x04]).unwrap();
-        hasher.update(test_pub.x.bytes()).unwrap();
-        hasher.update(test_pub.y.bytes()).unwrap();
+        hasher.update(x).unwrap();
+        hasher.update(y).unwrap();
         let mut subject_key_identifier = [0u8; MAX_KEY_IDENTIFIER_SIZE];
         let digest = &hasher.finish().unwrap();
         subject_key_identifier.copy_from_slice(&digest[..MAX_KEY_IDENTIFIER_SIZE]);
@@ -2973,7 +2974,7 @@ pub(crate) mod tests {
                 TEST_SERIAL,
                 &issuer_der[..issuer_len],
                 &TEST_SUBJECT_NAME,
-                &test_pub,
+                &crypto::EcdsaPubKey::Ecdsa256(test_pub),
                 &measurements,
                 &validity,
             )

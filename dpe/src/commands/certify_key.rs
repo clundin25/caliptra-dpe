@@ -130,16 +130,20 @@ impl CommandExecution for CertifyKeyCmd {
             _ => return Err(DpeErrorCode::InvalidArgument),
         }?;
 
+        // TODO(clundin): De-tangle public key from compile time profile?
         let (derived_pubkey_x, derived_pubkey_y) = match pub_key {
             ExportedPubKey::Ecdsa(pub_key) => {
-                let derived_pubkey_x: [u8; DPE_PROFILE.get_ecc_int_size()] = pub_key
-                    .x
-                    .bytes()
+                let (x, y) = pub_key
+                    .as_slice()
+                    .map_err(|_| DpeErrorCode::InternalError)?;
+                let derived_pubkey_x: [u8; DPE_PROFILE.get_ecc_int_size()] = x
+                    .get(0..DPE_PROFILE.get_ecc_int_size())
+                    .ok_or(DpeErrorCode::InternalError)?
                     .try_into()
                     .map_err(|_| DpeErrorCode::InternalError)?;
-                let derived_pubkey_y: [u8; DPE_PROFILE.get_ecc_int_size()] = pub_key
-                    .y
-                    .bytes()
+                let derived_pubkey_y: [u8; DPE_PROFILE.get_ecc_int_size()] = y
+                    .get(0..DPE_PROFILE.get_ecc_int_size())
+                    .ok_or(DpeErrorCode::InternalError)?
                     .try_into()
                     .map_err(|_| DpeErrorCode::InternalError)?;
                 (derived_pubkey_x, derived_pubkey_y)
@@ -177,7 +181,9 @@ mod tests {
         content_info::{CmsVersion, ContentInfo},
         signed_data::{SignedData, SignerIdentifier},
     };
-    use crypto::{Algorithm, Crypto, CryptoBuf, EcdsaAlgorithm, EcdsaPub, ExportedPubKey, OpensslCrypto};
+    use crypto::{
+        Algorithm, Crypto, CryptoBuf, EcdsaAlgorithm, EcdsaPub, ExportedPubKey, OpensslCrypto,
+    };
     use der::{Decode, Encode};
     use openssl::{
         bn::BigNum,
@@ -410,8 +416,12 @@ mod tests {
             // validate csr signature with the alias key
             let csr_digest = env.crypto.hash(DPE_PROFILE.alg(), econtent).unwrap();
             let priv_key = match DPE_PROFILE.alg() {
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => EcKey::private_key_from_der(include_bytes!( "../../../platform/src/test_data/key_256.der")),
-                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => EcKey::private_key_from_der(include_bytes!( "../../../platform/src/test_data/key_384.der")),
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => EcKey::private_key_from_der(
+                    include_bytes!("../../../platform/src/test_data/key_256.der"),
+                ),
+                Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => EcKey::private_key_from_der(
+                    include_bytes!("../../../platform/src/test_data/key_384.der"),
+                ),
             }
             .unwrap();
             let curve = match DPE_PROFILE.alg() {
@@ -445,6 +455,7 @@ mod tests {
             };
             let pub_key_der = ec_point.data();
             // skip first 0x04 der encoding byte
+            //dbg!(pub_key_der);
             let x =
                 BigNum::from_slice(&pub_key_der[1..DPE_PROFILE.get_ecc_int_size() + 1]).unwrap();
             let y = BigNum::from_slice(&pub_key_der[DPE_PROFILE.get_ecc_int_size() + 1..]).unwrap();

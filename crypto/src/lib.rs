@@ -35,13 +35,12 @@ pub enum EcdsaAlgorithm {
     Bit384,
 }
 
-#[cfg(test)] 
+#[cfg(test)]
 impl Default for EcdsaAlgorithm {
     fn default() -> Self {
         Self::Bit384
     }
 }
-
 
 impl EcdsaAlgorithm {
     const fn curve_size(self) -> usize {
@@ -59,7 +58,7 @@ pub enum MldsaAlgorithm {
     KL87,
 }
 
-#[cfg(all(test, feature = "ml-dsa"))] 
+#[cfg(all(test, feature = "ml-dsa"))]
 impl Default for MldsaAlgorithm {
     fn default() -> Self {
         Self::KL87
@@ -87,16 +86,27 @@ impl Algorithm {
     #[cfg(feature = "ml-dsa")]
     const MAX_ALG_LEN: Self = Self::MlDsa(MldsaAlgorithm::KL87);
     #[cfg(feature = "ml-dsa")]
+    // The ML-DSA private key will be the largest item.
     pub(crate) const MAX_ALG_LEN_BYTES: usize = Self::MAX_ALG_LEN.private_key_size();
 
     #[cfg(not(feature = "ml-dsa"))]
     const MAX_ALG_LEN: Self = Self::Ecdsa(EcdsaAlgorithm::Bit384);
     #[cfg(not(feature = "ml-dsa"))]
-    pub(crate) const MAX_ALG_LEN_BYTES: usize = Self::MAX_ALG_LEN.private_key_size();
+    // When ML-DSA is not enabled, the largest item in the set of (private key, public key, and
+    // signature) is the signature.
+    pub(crate) const MAX_ALG_LEN_BYTES: usize = Self::MAX_ALG_LEN.signature_size();
+
+    pub const fn digest_size(self) -> usize {
+        match self {
+            Algorithm::Ecdsa(ec) => ec.curve_size(),
+            #[cfg(feature = "ml-dsa")]
+            // TODO(clundin): Need to figure out what digest size is appropriate.
+            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 32,
+        }
+    }
 
     pub const fn signature_size(self) -> usize {
         match self {
-            // Ecdsa Signature have big nums `R` and `S` that are the same size as the EC curve.
             Algorithm::Ecdsa(ec) => ec.curve_size() * 2,
             #[cfg(feature = "ml-dsa")]
             Algorithm::MlDsa(MldsaAlgorithm::KL87) => 4627,
@@ -172,8 +182,37 @@ pub trait Hasher: Sized {
 
 pub type Digest = CryptoBuf;
 
+#[derive(Clone)]
 pub enum ExportedPubKey {
-    Ecdsa(EcdsaPub),
+    Ecdsa(EcdsaPubKey),
+}
+
+#[derive(Clone)]
+pub enum EcdsaPubKey {
+    Ecdsa256(EcdsaPub256),
+    Ecdsa384(EcdsaPub384),
+}
+
+impl EcdsaPubKey {
+    pub fn as_slice(&self) -> Result<(&[u8], &[u8]), CryptoError> {
+        match self {
+            Self::Ecdsa256(key) => {
+                let (x, y) = key.as_slice().unwrap();
+                Ok((x.as_slice(), y.as_slice()))
+            }
+            Self::Ecdsa384(key) => {
+                let (x, y) = key.as_slice().unwrap();
+                Ok((x.as_slice(), y.as_slice()))
+            }
+        }
+    }
+
+    pub fn curve_size(&self) -> usize {
+        match self {
+            Self::Ecdsa256(key) => key.curve_size(),
+            Self::Ecdsa384(key) => key.curve_size(),
+        }
+    }
 }
 
 pub enum Signature {
@@ -223,16 +262,18 @@ pub trait Crypto {
         pub_key: &ExportedPubKey,
         serial: &mut [u8],
     ) -> Result<(), CryptoError> {
-        if serial.len() < algs.signature_size() {
+        if serial.len() < algs.digest_size() {
             return Err(CryptoError::Size);
         }
 
         let mut hasher = self.hash_initialize(algs)?;
-        match pub_key {
-            ExportedPubKey::Ecdsa(pub_key) => {
+        match (algs, pub_key) {
+            (Algorithm::Ecdsa(curve), ExportedPubKey::Ecdsa(pub_key)) => {
+                let (x, y) = pub_key.as_slice()?;
+
                 hasher.update(&[0x4u8])?;
-                hasher.update(pub_key.x.bytes())?;
-                hasher.update(pub_key.y.bytes())?;
+                hasher.update(x)?;
+                hasher.update(y)?;
             }
         }
         let digest = hasher.finish()?;
@@ -406,7 +447,16 @@ mod tests {
     #[test]
     fn test_max_alg_len_size() {
         let max_len = Algorithm::iter()
-            .map(|x| x.private_key_size())
+            .map(|x| {
+                [
+                    x.private_key_size(),
+                    x.public_key_size(),
+                    x.signature_size(),
+                ]
+                .into_iter()
+                .max()
+                .unwrap()
+            })
             .max()
             .unwrap();
         assert_eq!(Algorithm::MAX_ALG_LEN_BYTES, max_len);

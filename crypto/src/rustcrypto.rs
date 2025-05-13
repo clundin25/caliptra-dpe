@@ -102,7 +102,7 @@ impl RustCryptoImpl {
                 let point = verifying.to_encoded_point(false);
                 let x = CryptoBuf::new(point.x().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice())?;
                 let y = CryptoBuf::new(point.y().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice())?;
-                Ok((secret, EcdsaPub { x, y }))
+                Ok((secret, EcdsaPub256::new { x, y }))
             }
             AlgLen::Bit384 => {
                 let signing = p384::ecdsa::SigningKey::from_slice(&secret.bytes())?;
