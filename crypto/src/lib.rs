@@ -7,6 +7,7 @@ Abstract:
 
 #[cfg(feature = "openssl")]
 pub use crate::openssl::*;
+use ecdsa::EcdsaSignature;
 pub use signer::*;
 
 #[cfg(feature = "rustcrypto")]
@@ -158,7 +159,7 @@ pub enum ExportedPubKey {
 }
 
 pub enum Signature {
-    Ecdsa(EcdsaSig),
+    Ecdsa(EcdsaSignature),
 }
 
 pub trait Crypto: DpeProfile {

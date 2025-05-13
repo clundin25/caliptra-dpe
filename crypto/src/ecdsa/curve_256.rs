@@ -10,3 +10,4 @@ impl EcdsaCurveParams for Curve256 {
 }
 
 pub type EcdsaPub256 = EcdsaPub<{ Curve256::CURVE_SIZE }, Curve256>;
+pub type EcdsaSignature256 = EcdsaSig<{ Curve256::CURVE_SIZE }, Curve256>;

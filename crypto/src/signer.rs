@@ -1,14 +1,11 @@
 // Licensed under the Apache-2.0 license
 
-use crate::{CryptoError, ecdsa::{curve_256::Curve256, EcdsaCurveParams}};
+use crate::{
+    ecdsa::{curve_256::Curve256, EcdsaCurveParams},
+    CryptoError,
+};
 use arrayvec::ArrayVec;
 use zeroize::ZeroizeOnDrop;
-
-/// An ECDSA signature
-pub struct EcdsaSig {
-    pub r: CryptoBuf,
-    pub s: CryptoBuf,
-}
 
 /// A common base struct that can be used for all digests, signatures, and keys.
 #[derive(Debug, PartialEq, Eq, ZeroizeOnDrop)]

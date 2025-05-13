@@ -10,4 +10,3 @@ impl EcdsaCurveParams for Curve384 {
 
 // TODO(clundin): Is there a cleaner way that avoids two generics?
 pub type EcdsaPub384 = EcdsaPub<{ Curve384::CURVE_SIZE }, Curve384>;
-

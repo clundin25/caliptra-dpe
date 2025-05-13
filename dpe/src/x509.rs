@@ -17,8 +17,8 @@ use caliptra_cfi_lib_git::cfi_launder;
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq};
 use crypto::{
-    Crypto, Digest, ecdsa::EcdsaPubKey, EcdsaSig, ExportedPubKey, Hasher, Signature,
-    SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
+    ecdsa::{EcdsaPubKey, EcdsaSignature},
+    Crypto, Digest, ExportedPubKey, Hasher, Signature, SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "disable_x509"))]
 use platform::CertValidity;
@@ -319,12 +319,13 @@ impl CertWriter<'_> {
 
     /// If `tagged`, include the tag and size fields
     fn get_ecdsa_signature_bit_string_size(
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
         tagged: bool,
     ) -> Result<usize, DpeErrorCode> {
+        let (r, s) = sig.as_slice()?;
         let seq_size = Self::get_structure_size(
-            Self::get_integer_bytes_size(sig.r.bytes(), /*tagged=*/ true)?
-                + Self::get_integer_bytes_size(sig.s.bytes(), /*tagged=*/ true)?,
+            Self::get_integer_bytes_size(r, /*tagged=*/ true)?
+                + Self::get_integer_bytes_size(s, /*tagged=*/ true)?,
             /*tagged=*/ true,
         )?;
 
@@ -335,12 +336,13 @@ impl CertWriter<'_> {
     /// If `tagged`, include the tag and size fields
     #[cfg(not(feature = "disable_csr"))]
     fn get_ecdsa_signature_octet_string_size(
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
         tagged: bool,
     ) -> Result<usize, DpeErrorCode> {
+        let (r, s) = sig.as_slice()?;
         let seq_size = Self::get_structure_size(
-            Self::get_integer_bytes_size(sig.r.bytes(), /*tagged=*/ true)?
-                + Self::get_integer_bytes_size(sig.s.bytes(), /*tagged=*/ true)?,
+            Self::get_integer_bytes_size(r, /*tagged=*/ true)?
+                + Self::get_integer_bytes_size(s, /*tagged=*/ true)?,
             /*tagged=*/ true,
         )?;
 
@@ -678,7 +680,7 @@ impl CertWriter<'_> {
     /// If `tagged`, include the tag and size fields
     #[cfg(not(feature = "disable_csr"))]
     fn get_signer_info_size(
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
         sid: &SignerIdentifier,
         tagged: bool,
     ) -> Result<usize, DpeErrorCode> {
@@ -696,7 +698,7 @@ impl CertWriter<'_> {
     #[cfg(not(feature = "disable_csr"))]
     fn get_signed_data_size(
         csr: &[u8],
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
         sid: &SignerIdentifier,
         tagged: bool,
         explicit: bool,
@@ -1136,9 +1138,13 @@ impl CertWriter<'_> {
     ///     r  INTEGER,
     ///     s  INTEGER
     ///   }
-    fn encode_ecdsa_signature_bit_string(&mut self, sig: &EcdsaSig) -> Result<usize, DpeErrorCode> {
-        let seq_size = Self::get_integer_bytes_size(sig.r.bytes(), /*tagged=*/ true)?
-            + Self::get_integer_bytes_size(sig.s.bytes(), /*tagged=*/ true)?;
+    fn encode_ecdsa_signature_bit_string(
+        &mut self,
+        sig: &EcdsaSignature,
+    ) -> Result<usize, DpeErrorCode> {
+        let (r, s) = sig.as_slice()?;
+        let seq_size = Self::get_integer_bytes_size(r, /*tagged=*/ true)?
+            + Self::get_integer_bytes_size(s, /*tagged=*/ true)?;
 
         // Encode BIT STRING
         let mut bytes_written = self.encode_tag_field(Self::BIT_STRING_TAG)?;
@@ -1152,8 +1158,8 @@ impl CertWriter<'_> {
         // Encode SEQUENCE
         bytes_written += self.encode_tag_field(Self::SEQUENCE_TAG)?;
         bytes_written += self.encode_size_field(seq_size)?;
-        bytes_written += self.encode_integer_bytes(sig.r.bytes())?;
-        bytes_written += self.encode_integer_bytes(sig.s.bytes())?;
+        bytes_written += self.encode_integer_bytes(r)?;
+        bytes_written += self.encode_integer_bytes(s)?;
 
         Ok(bytes_written)
     }
@@ -1167,10 +1173,11 @@ impl CertWriter<'_> {
     #[cfg(not(feature = "disable_csr"))]
     fn encode_ecdsa_signature_octet_string(
         &mut self,
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
     ) -> Result<usize, DpeErrorCode> {
-        let seq_size = Self::get_integer_bytes_size(sig.r.bytes(), /*tagged=*/ true)?
-            + Self::get_integer_bytes_size(sig.s.bytes(), /*tagged=*/ true)?;
+        let (r, s) = sig.as_slice()?;
+        let seq_size = Self::get_integer_bytes_size(r, /*tagged=*/ true)?
+            + Self::get_integer_bytes_size(s, /*tagged=*/ true)?;
 
         // Encode OCTET STRING
         let mut bytes_written = self.encode_tag_field(Self::OCTET_STRING_TAG)?;
@@ -1180,8 +1187,8 @@ impl CertWriter<'_> {
         // Encode SEQUENCE
         bytes_written += self.encode_tag_field(Self::SEQUENCE_TAG)?;
         bytes_written += self.encode_size_field(seq_size)?;
-        bytes_written += self.encode_integer_bytes(sig.r.bytes())?;
-        bytes_written += self.encode_integer_bytes(sig.s.bytes())?;
+        bytes_written += self.encode_integer_bytes(r)?;
+        bytes_written += self.encode_integer_bytes(s)?;
 
         Ok(bytes_written)
     }
@@ -1777,7 +1784,7 @@ impl CertWriter<'_> {
     fn encode_signed_data(
         &mut self,
         csr: &[u8],
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
         sid: &SignerIdentifier,
     ) -> Result<usize, DpeErrorCode> {
         // SignedData is EXPLICIT field number 0
@@ -1872,7 +1879,7 @@ impl CertWriter<'_> {
     #[cfg(not(feature = "disable_csr"))]
     pub fn encode_signer_info(
         &mut self,
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
         sid: &SignerIdentifier,
     ) -> Result<usize, DpeErrorCode> {
         let signer_info_size = Self::get_signer_info_size(sig, sid, /*tagged=*/ false)?;
@@ -2129,7 +2136,7 @@ impl CertWriter<'_> {
     pub fn encode_ecdsa_certificate(
         &mut self,
         tbs: &[u8],
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
     ) -> Result<usize, DpeErrorCode> {
         let cert_size = tbs.len()
             + Self::get_ecdsa_sig_alg_id_size(/*tagged=*/ true)?
@@ -2217,7 +2224,7 @@ impl CertWriter<'_> {
     pub fn encode_csr(
         &mut self,
         cert_req_info: &[u8],
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
     ) -> Result<usize, DpeErrorCode> {
         let csr_size = cert_req_info.len()
             + Self::get_ecdsa_sig_alg_id_size(/*tagged=*/ true)?
@@ -2249,7 +2256,7 @@ impl CertWriter<'_> {
     pub fn encode_cms(
         &mut self,
         csr: &[u8],
-        sig: &EcdsaSig,
+        sig: &EcdsaSignature,
         sid: &SignerIdentifier,
     ) -> Result<usize, DpeErrorCode> {
         let size = Self::get_structure_size(Self::ID_SIGNED_DATA_OID.len(), /*tagged=*/ true)?
@@ -2352,7 +2359,6 @@ fn get_tci_nodes<'a>(
 
 fn get_subject_key_identifier(
     env: &mut DpeEnv<impl DpeTypes>,
-    alg: SignatureAlgorithm,
     pub_key: &ExportedPubKey,
     subject_key_identifier: &mut [u8],
 ) -> Result<(), DpeErrorCode> {
@@ -2470,7 +2476,7 @@ fn create_dpe_cert_or_csr(
     let tci_nodes = get_tci_nodes(dpe, args.handle, args.locality, &mut nodes)?;
 
     let mut subject_key_identifier = [0u8; MAX_KEY_IDENTIFIER_SIZE];
-    get_subject_key_identifier(env, algs, &exported_pub_key, &mut subject_key_identifier)?;
+    get_subject_key_identifier(env, &exported_pub_key, &mut subject_key_identifier)?;
 
     let mut authority_key_identifier = [0u8; MAX_KEY_IDENTIFIER_SIZE];
     env.platform
@@ -2585,7 +2591,11 @@ pub(crate) mod tests {
     use crate::tci::{TciMeasurement, TciNodeData};
     use crate::x509::{CertWriter, DirectoryString, MeasurementData, Name};
     use crate::{DpeProfile, DPE_PROFILE};
-    use crypto::{CryptoBuf, ecdsa::{EcdsaPub, EcdsaPubKey}, EcdsaSig};
+    use crypto::ecdsa::EcdsaSignature;
+    use crypto::{
+        ecdsa::{curve_256::EcdsaSignature256, EcdsaPub, EcdsaPubKey},
+        CryptoBuf,
+    };
     use openssl::hash::{Hasher, MessageDigest};
     use platform::{ArrayVec, CertValidity, OtherName, SubjectAltName, MAX_KEY_IDENTIFIER_SIZE};
     use std::str;
@@ -2978,14 +2988,12 @@ pub(crate) mod tests {
         let mut tbs_buf = [0u8; 1024];
         let (tbs_written, _) = build_test_tbs(is_ca, &mut tbs_buf);
 
-        let test_sig = EcdsaSig {
-            r: CryptoBuf::new(&[0xCC; ECC_INT_SIZE]).unwrap(),
-            s: CryptoBuf::new(&[0xDD; ECC_INT_SIZE]).unwrap(),
-        };
+        let test_sig =
+            EcdsaSignature256::from_slice(&[0xCC; ECC_INT_SIZE], &[0xDD; ECC_INT_SIZE]).unwrap();
 
         let mut w = CertWriter::new(cert_buf, true);
         let bytes_written = w
-            .encode_ecdsa_certificate(&tbs_buf[..tbs_written], &test_sig)
+            .encode_ecdsa_certificate(&tbs_buf[..tbs_written], &EcdsaSignature::Ecdsa256(test_sig))
             .unwrap();
 
         let mut parser = X509CertificateParser::new().with_deep_parse_extensions(true);

@@ -3,12 +3,17 @@
 use core::marker::PhantomData;
 
 use crate::{
-    hkdf::*, Crypto, CryptoBuf, CryptoError, Digest, DpeProfile, ecdsa::{curve_256::{Curve256, EcdsaPub256}, *},
-    ExportedCdiHandle, ExportedPubKey, Hasher, Signature,
-    SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
+    ecdsa::{
+        curve_256::{Curve256, EcdsaPub256},
+        *,
+    },
+    hkdf::*,
+    Crypto, CryptoBuf, CryptoError, Digest, DpeProfile, ExportedCdiHandle, ExportedPubKey, Hasher,
+    Signature, SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_derive_git::cfi_impl_fn;
+use curve_256::EcdsaSignature256;
 use openssl::{
     bn::{BigNum, BigNumContext},
     ec::{EcGroup, EcKey, EcPoint},
@@ -292,19 +297,21 @@ impl<Curve256> Crypto for OpensslCrypto<Curve256> {
         )))
         .unwrap();
         let sig = EcdsaSig::sign::<Private>(digest.bytes(), &ec_priv)?;
-        let r = CryptoBuf::new(
-            &sig.r()
-                .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
-                .unwrap(),
-        )
-        .unwrap();
-        let s = CryptoBuf::new(
-            &sig.s()
-                .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
-                .unwrap(),
-        )
-        .unwrap();
-        Ok(Signature::Ecdsa(super::EcdsaSig { r, s }))
+        let r: [u8; EcdsaAlgorithm::Bit256.curve_size()] = sig
+            .r()
+            .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let s: [u8; EcdsaAlgorithm::Bit256.curve_size()] = sig
+            .s()
+            .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        Ok(Signature::Ecdsa(EcdsaSignature::Ecdsa256(
+            EcdsaSignature256::from_slice(&r, &s).unwrap(),
+        )))
     }
 
     fn sign_with_derived(
@@ -316,20 +323,22 @@ impl<Curve256> Crypto for OpensslCrypto<Curve256> {
         let ec_priv_key = <OpensslCrypto<Curve256>>::ec_key_from_priv_key(priv_key)?;
         let sig = EcdsaSig::sign::<Private>(digest.bytes(), &ec_priv_key).unwrap();
 
-        let r = CryptoBuf::new(
-            &sig.r()
-                .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
-                .unwrap(),
-        )
-        .unwrap();
-        let s = CryptoBuf::new(
-            &sig.s()
-                .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
-                .unwrap(),
-        )
-        .unwrap();
+        let r: [u8; EcdsaAlgorithm::Bit256.curve_size()] = sig
+            .r()
+            .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let s: [u8; EcdsaAlgorithm::Bit256.curve_size()] = sig
+            .s()
+            .to_vec_padded(EcdsaAlgorithm::Bit256.curve_size() as i32)
+            .unwrap()
+            .try_into()
+            .unwrap();
 
-        Ok(Signature::Ecdsa(super::EcdsaSig { r, s }))
+        Ok(Signature::Ecdsa(EcdsaSignature::Ecdsa256(
+            EcdsaSignature256::from_slice(&r, &s).unwrap(),
+        )))
     }
 
     fn export_public_key(&self, pub_key: &Self::PubKey) -> Result<ExportedPubKey, CryptoError> {

@@ -182,8 +182,8 @@ mod tests {
         signed_data::{SignedData, SignerIdentifier},
     };
     use crypto::{
-        Crypto, ecdsa::{EcdsaAlgorithm, EcdsaPub, EcdsaPubKey}, ExportedPubKey, OpensslCrypto,
-        SignatureAlgorithm,
+        ecdsa::{EcdsaAlgorithm, EcdsaPub, EcdsaPubKey},
+        Crypto, ExportedPubKey, OpensslCrypto, SignatureAlgorithm,
     };
     use der::{Decode, Encode};
     use openssl::{

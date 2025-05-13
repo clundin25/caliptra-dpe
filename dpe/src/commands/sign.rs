@@ -13,7 +13,7 @@ use caliptra_cfi_lib_git::cfi_launder;
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq, cfi_assert_ne};
 use cfg_if::cfg_if;
-use crypto::{Crypto, Digest, EcdsaSig, Signature};
+use crypto::{ecdsa::EcdsaSignature, Crypto, Digest, Signature};
 
 #[repr(C)]
 #[derive(
@@ -58,13 +58,13 @@ impl SignCmd {
     /// * `idx` - The index of the context where the measurement hash is computed from
     /// * `digest` - The data to be signed
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
-    fn ecdsa_sign(
+    fn sign(
         &self,
         dpe: &mut DpeInstance,
         env: &mut DpeEnv<impl DpeTypes>,
         idx: usize,
         digest: &Digest,
-    ) -> Result<EcdsaSig, DpeErrorCode> {
+    ) -> Result<Signature, DpeErrorCode> {
         let cdi_digest = dpe.compute_measurement_hash(env, idx)?;
         let cdi = env.crypto.derive_cdi(&cdi_digest, b"DPE")?;
         let key_pair = env.crypto.derive_key_pair(&cdi, &self.label, b"ECC");
@@ -77,9 +77,8 @@ impl SignCmd {
         }
         let (priv_key, pub_key) = key_pair?;
 
-        let Signature::Ecdsa(sig) = env.crypto.sign_with_derived(digest, &priv_key, &pub_key)?;
-
-        Ok(sig)
+        // TODO(clundin): Remove the `?` keyword here
+        Ok(env.crypto.sign_with_derived(digest, &priv_key, &pub_key)?)
     }
 }
 
@@ -105,27 +104,21 @@ impl CommandExecution for SignCmd {
         }
 
         let digest = Digest::new(&self.digest)?;
-        let EcdsaSig { r, s } = self.ecdsa_sign(dpe, env, idx, &digest)?;
+        match self.sign(dpe, env, idx, &digest)? {
+            Signature::Ecdsa(EcdsaSignature::Ecdsa256(sig)) => {
+                // Rotate the handle if it isn't the default context.
+                dpe.roll_onetime_use_handle(env, idx)?;
 
-        let sig_r: [u8; DPE_PROFILE.get_ecc_int_size()] = r
-            .bytes()
-            .try_into()
-            .map_err(|_| DpeErrorCode::InternalError)?;
+                let (&sig_r, &sig_s) = sig.as_slice()?;
 
-        let sig_s: [u8; DPE_PROFILE.get_ecc_int_size()] = s
-            .bytes()
-            .try_into()
-            .map_err(|_| DpeErrorCode::InternalError)?;
-
-        // Rotate the handle if it isn't the default context.
-        dpe.roll_onetime_use_handle(env, idx)?;
-
-        Ok(Response::Sign(SignResp {
-            new_context_handle: dpe.contexts[idx].handle,
-            sig_r,
-            sig_s,
-            resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
-        }))
+                Ok(Response::Sign(SignResp {
+                    new_context_handle: dpe.contexts[idx].handle,
+                    sig_r,
+                    sig_s,
+                    resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+                }))
+            }
+        }
     }
 }
 

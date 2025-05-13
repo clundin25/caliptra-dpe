@@ -1,6 +1,6 @@
 // Licensed under the Apache-2.0 license
 
-use crate::{CryptoBuf, CryptoError, Digest, ecdsa::EcdsaAlgorithm, SignatureAlgorithm};
+use crate::{ecdsa::EcdsaAlgorithm, CryptoBuf, CryptoError, Digest, SignatureAlgorithm};
 use hkdf::Hkdf;
 use sha2::{Sha256, Sha384};
 
