@@ -1,7 +1,7 @@
 // Licensed under the Apache-2.0 license
 
 use crate::{
-    ecdsa::{curve_256::Curve256, EcdsaCurveParams},
+    ecdsa::{curve_384::Curve384, EcdsaCurveParams},
     CryptoError,
 };
 use arrayvec::ArrayVec;
@@ -22,7 +22,7 @@ impl Default for CryptoBuf {
 }
 
 impl CryptoBuf {
-    pub const MAX_SIZE: usize = Curve256::CURVE_SIZE * 2;
+    pub const MAX_SIZE: usize = Curve384::CURVE_SIZE * 2;
 
     pub fn new(bytes: &[u8]) -> Result<CryptoBuf, CryptoError> {
         let mut vec = ArrayVec::new();

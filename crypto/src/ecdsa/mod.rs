@@ -70,6 +70,7 @@ pub struct EcdsaSig<const K: usize, T: EcdsaCurveParams> {
 #[derive(Clone)]
 pub enum EcdsaSignature {
     Ecdsa256(curve_256::EcdsaSignature256),
+    Ecdsa384(curve_384::EcdsaSignature384),
 }
 
 impl EcdsaSignature {
@@ -79,12 +80,17 @@ impl EcdsaSignature {
                 let (r, s) = sig.as_slice().unwrap();
                 Ok((r.as_slice(), s.as_slice()))
             }
+            Self::Ecdsa384(sig) => {
+                let (r, s) = sig.as_slice().unwrap();
+                Ok((r.as_slice(), s.as_slice()))
+            }
         }
     }
 
     pub fn curve_size(&self) -> usize {
         match self {
             Self::Ecdsa256(key) => key.curve_size(),
+            Self::Ecdsa384(key) => key.curve_size(),
         }
     }
 }
