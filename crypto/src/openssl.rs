@@ -3,8 +3,8 @@
 use core::marker::PhantomData;
 
 use crate::{
-    hkdf::*, Crypto, CryptoBuf, CryptoError, Digest, DpeProfile, EcdsaAlgorithm, EcdsaCurveParams,
-    EcdsaPub256, EcdsaPub384, EcdsaPubKey, ExportedCdiHandle, ExportedPubKey, Hasher, Signature,
+    hkdf::*, Crypto, CryptoBuf, CryptoError, Digest, DpeProfile, ecdsa::{curve_256::{Curve256, EcdsaPub256}, *},
+    ExportedCdiHandle, ExportedPubKey, Hasher, Signature,
     SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "no-cfi"))]

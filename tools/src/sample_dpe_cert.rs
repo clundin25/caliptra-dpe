@@ -1,6 +1,6 @@
 // Licensed under the Apache-2.0 license
 
-use crypto::Curve256;
+use crypto::ecdsa::curve_256::Curve256;
 use dpe::dpe_instance::DpeInstanceFlags;
 use platform::default::DefaultPlatformProfile;
 use std::env;

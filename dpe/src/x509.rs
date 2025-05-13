@@ -17,7 +17,7 @@ use caliptra_cfi_lib_git::cfi_launder;
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq};
 use crypto::{
-    Crypto, Digest, EcdsaPub, EcdsaPubKey, EcdsaSig, ExportedPubKey, Hasher, Signature,
+    Crypto, Digest, ecdsa::EcdsaPubKey, EcdsaSig, ExportedPubKey, Hasher, Signature,
     SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "disable_x509"))]
@@ -2585,7 +2585,7 @@ pub(crate) mod tests {
     use crate::tci::{TciMeasurement, TciNodeData};
     use crate::x509::{CertWriter, DirectoryString, MeasurementData, Name};
     use crate::{DpeProfile, DPE_PROFILE};
-    use crypto::{CryptoBuf, EcdsaPub, EcdsaPubKey, EcdsaSig, ExportedPubKey};
+    use crypto::{CryptoBuf, ecdsa::{EcdsaPub, EcdsaPubKey}, EcdsaSig};
     use openssl::hash::{Hasher, MessageDigest};
     use platform::{ArrayVec, CertValidity, OtherName, SubjectAltName, MAX_KEY_IDENTIFIER_SIZE};
     use std::str;
@@ -2864,7 +2864,7 @@ pub(crate) mod tests {
                 &test_serial,
                 &issuer_der,
                 &test_subject_name,
-                &crypto::EcdsaPubKey::Ecdsa256(test_pub),
+                &EcdsaPubKey::Ecdsa256(test_pub),
                 &measurements,
                 &validity,
             )
@@ -2961,7 +2961,7 @@ pub(crate) mod tests {
                 TEST_SERIAL,
                 &issuer_der[..issuer_len],
                 &TEST_SUBJECT_NAME,
-                &crypto::EcdsaPubKey::Ecdsa256(test_pub),
+                &EcdsaPubKey::Ecdsa256(test_pub),
                 &measurements,
                 &validity,
             )

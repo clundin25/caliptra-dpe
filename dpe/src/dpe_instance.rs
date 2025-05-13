@@ -566,7 +566,7 @@ pub mod tests {
     use crate::support::test::SUPPORT;
     use crate::{commands::CommandHdr, CURRENT_PROFILE_MAJOR_VERSION};
     use caliptra_cfi_lib_git::CfiCounter;
-    use crypto::{Curve256, OpensslCrypto};
+    use crypto::{ecdsa::curve_256::Curve256, OpensslCrypto};
     use platform::default::{DefaultPlatform, AUTO_INIT_LOCALITY};
     use zerocopy::IntoBytes;
 

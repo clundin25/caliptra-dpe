@@ -4,7 +4,7 @@
 compile_error!("must provide a crypto implementation");
 
 use clap::Parser;
-use crypto::Curve256;
+use crypto::ecdsa::curve_256::Curve256;
 use dpe::dpe_instance::DpeInstanceFlags;
 use log::{error, info, trace, warn};
 use platform::default::{DefaultPlatform, DefaultPlatformProfile};

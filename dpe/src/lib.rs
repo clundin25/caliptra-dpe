@@ -25,7 +25,7 @@ pub mod x509;
 
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
-pub use crypto::{ExportedCdiHandle, MAX_EXPORTED_CDI_SIZE};
+pub use crypto::{ExportedCdiHandle, MAX_EXPORTED_CDI_SIZE, ecdsa::EcdsaAlgorithm};
 
 // Max cert size returned by CertifyKey
 const MAX_CERT_SIZE: usize = 6144;
@@ -94,10 +94,10 @@ impl DpeProfile {
         //TODO(clundin): add a Dpe profile for ml-dsa
         match self {
             DpeProfile::P256Sha256 => {
-                crypto::SignatureAlgorithm::Ecdsa(crypto::EcdsaAlgorithm::Bit256)
+                crypto::SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256)
             }
             DpeProfile::P384Sha384 => {
-                crypto::SignatureAlgorithm::Ecdsa(crypto::EcdsaAlgorithm::Bit384)
+                crypto::SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384)
             }
         }
     }

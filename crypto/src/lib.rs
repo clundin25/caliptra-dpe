@@ -25,34 +25,14 @@ pub use rand::*;
 mod hkdf;
 mod signer;
 
+// TODO(clundin): Put this behind a feature flag?
+pub mod ecdsa;
+
 pub const MAX_EXPORTED_CDI_SIZE: usize = 32;
 pub type ExportedCdiHandle = [u8; MAX_EXPORTED_CDI_SIZE];
 
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
-pub enum EcdsaAlgorithm {
-    Bit256,
-    Bit384,
-}
-
 pub trait DpeProfile {
     const SIGNATURE_ALGORITHM: SignatureAlgorithm;
-}
-
-#[cfg(test)]
-impl Default for EcdsaAlgorithm {
-    fn default() -> Self {
-        Self::Bit384
-    }
-}
-
-impl EcdsaAlgorithm {
-    const fn curve_size(self) -> usize {
-        match self {
-            EcdsaAlgorithm::Bit256 => 256 / 8,
-            EcdsaAlgorithm::Bit384 => 384 / 8,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -77,10 +57,11 @@ impl MldsaAlgorithm {
         }
     }
 }
+
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum SignatureAlgorithm {
-    Ecdsa(EcdsaAlgorithm),
+    Ecdsa(ecdsa::EcdsaAlgorithm),
     #[cfg(feature = "ml-dsa")]
     MlDsa(MldsaAlgorithm),
     // NOTE: If a larger length is added, MUST update Algorithm::MAX_ALG_LEN
@@ -94,7 +75,8 @@ impl SignatureAlgorithm {
     pub(crate) const MAX_ALG_LEN_BYTES: usize = Self::MAX_ALG_LEN.private_key_size();
 
     #[cfg(not(feature = "ml-dsa"))]
-    const MAX_ALG_LEN: Self = Self::Ecdsa(EcdsaAlgorithm::Bit384);
+    //TODO(clundin): Remove this constant.
+    const MAX_ALG_LEN: Self = Self::Ecdsa(ecdsa::EcdsaAlgorithm::Bit384);
     #[cfg(not(feature = "ml-dsa"))]
     // When ML-DSA is not enabled, the largest item in the set of (private key, public key, and
     // signature) is the signature.
@@ -188,35 +170,7 @@ pub type Digest = CryptoBuf;
 
 #[derive(Clone)]
 pub enum ExportedPubKey {
-    Ecdsa(EcdsaPubKey),
-}
-
-#[derive(Clone)]
-pub enum EcdsaPubKey {
-    Ecdsa256(EcdsaPub256),
-    Ecdsa384(EcdsaPub384),
-}
-
-impl EcdsaPubKey {
-    pub fn as_slice(&self) -> Result<(&[u8], &[u8]), CryptoError> {
-        match self {
-            Self::Ecdsa256(key) => {
-                let (x, y) = key.as_slice().unwrap();
-                Ok((x.as_slice(), y.as_slice()))
-            }
-            Self::Ecdsa384(key) => {
-                let (x, y) = key.as_slice().unwrap();
-                Ok((x.as_slice(), y.as_slice()))
-            }
-        }
-    }
-
-    pub fn curve_size(&self) -> usize {
-        match self {
-            Self::Ecdsa256(key) => key.curve_size(),
-            Self::Ecdsa384(key) => key.curve_size(),
-        }
-    }
+    Ecdsa(ecdsa::EcdsaPubKey),
 }
 
 pub enum Signature {
