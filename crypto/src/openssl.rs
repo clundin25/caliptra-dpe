@@ -144,12 +144,12 @@ impl OpensslCrypto {
         let pub_key = match algs {
             Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
                 let x: &[u8; EcdsaPub256::CURVE_SIZE] = &x
-                    .to_vec_padded(algs.signature_size() as i32)
+                    .to_vec_padded(EcdsaPub256::CURVE_SIZE as i32)
                     .unwrap()
                     .try_into()
                     .unwrap();
                 let y: &[u8; EcdsaPub256::CURVE_SIZE] = &y
-                    .to_vec_padded(algs.signature_size() as i32)
+                    .to_vec_padded(EcdsaPub256::CURVE_SIZE as i32)
                     .unwrap()
                     .try_into()
                     .unwrap();
@@ -157,12 +157,12 @@ impl OpensslCrypto {
             }
             Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
                 let x: &[u8; EcdsaPub384::CURVE_SIZE] = &x
-                    .to_vec_padded(algs.signature_size() as i32)
+                    .to_vec_padded(EcdsaPub384::CURVE_SIZE as i32)
                     .unwrap()
                     .try_into()
                     .unwrap();
                 let y: &[u8; EcdsaPub384::CURVE_SIZE] = &y
-                    .to_vec_padded(algs.signature_size() as i32)
+                    .to_vec_padded(EcdsaPub384::CURVE_SIZE as i32)
                     .unwrap()
                     .try_into()
                     .unwrap();

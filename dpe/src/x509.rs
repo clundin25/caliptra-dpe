@@ -2594,7 +2594,7 @@ pub(crate) mod tests {
     use crate::tci::{TciMeasurement, TciNodeData};
     use crate::x509::{CertWriter, DirectoryString, MeasurementData, Name};
     use crate::{DpeProfile, DPE_PROFILE};
-    use crypto::{CryptoBuf, EcdsaPub, EcdsaSig, ExportedPubKey};
+    use crypto::{CryptoBuf, EcdsaPub, EcdsaPubKey, EcdsaSig, ExportedPubKey};
     use openssl::hash::{Hasher, MessageDigest};
     use platform::{ArrayVec, CertValidity, OtherName, SubjectAltName, MAX_KEY_IDENTIFIER_SIZE};
     use std::str;
@@ -2731,7 +2731,7 @@ pub(crate) mod tests {
     #[test]
     fn test_subject_pubkey() {
         let mut cert = [0u8; 256];
-        let test_key = EcdsaPub::default();
+        let test_key = EcdsaPubKey::Ecdsa256(EcdsaPub::default());
 
         let mut w = CertWriter::new(&mut cert, true);
         let bytes_written = w.encode_ecdsa_subject_pubkey_info(&test_key).unwrap();
@@ -2842,11 +2842,7 @@ pub(crate) mod tests {
         };
 
         const ECC_INT_SIZE: usize = DPE_PROFILE.get_ecc_int_size();
-        let test_pub = EcdsaPub {
-            x: CryptoBuf::new(&[0xAA; ECC_INT_SIZE]).unwrap(),
-            y: CryptoBuf::new(&[0xBB; ECC_INT_SIZE]).unwrap(),
-        };
-
+        let test_pub = EcdsaPub::from_slice(&[0xAA; ECC_INT_SIZE], &[0xBB; ECC_INT_SIZE]).unwrap();
         let node = TciNodeData::new();
 
         let measurements = MeasurementData {
@@ -2877,7 +2873,7 @@ pub(crate) mod tests {
                 &test_serial,
                 &issuer_der,
                 &test_subject_name,
-                &test_pub,
+                &crypto::EcdsaPubKey::Ecdsa256(test_pub),
                 &measurements,
                 &validity,
             )

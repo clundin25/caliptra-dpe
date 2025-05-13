@@ -182,7 +182,8 @@ mod tests {
         signed_data::{SignedData, SignerIdentifier},
     };
     use crypto::{
-        Algorithm, Crypto, CryptoBuf, EcdsaAlgorithm, EcdsaPub, ExportedPubKey, OpensslCrypto,
+        Algorithm, Crypto, CryptoBuf, EcdsaAlgorithm, EcdsaPub, EcdsaPubKey, ExportedPubKey,
+        OpensslCrypto,
     };
     use der::{Decode, Encode};
     use openssl::{
@@ -466,14 +467,15 @@ mod tests {
 
             // validate subject_name
             let mut subj_serial = [0u8; DPE_PROFILE.get_hash_size() * 2];
-            let pub_key = EcdsaPub {
-                x: CryptoBuf::new(&certify_resp.derived_pubkey_x).unwrap(),
-                y: CryptoBuf::new(&certify_resp.derived_pubkey_y).unwrap(),
-            };
+            let pub_key = EcdsaPub::from_slice(
+                &certify_resp.derived_pubkey_x,
+                &certify_resp.derived_pubkey_y,
+            )
+            .unwrap();
             env.crypto
                 .get_pubkey_serial(
                     DPE_PROFILE.alg(),
-                    &ExportedPubKey::Ecdsa(pub_key),
+                    &ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa256(pub_key)),
                     &mut subj_serial,
                 )
                 .unwrap();
