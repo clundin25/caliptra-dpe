@@ -1,6 +1,6 @@
 // Licensed under the Apache-2.0 license
 
-use crate::{CryptoError, SignatureAlgorithm};
+use crate::{CryptoError, ecdsa::{curve_256::Curve256, EcdsaCurveParams}};
 use arrayvec::ArrayVec;
 use zeroize::ZeroizeOnDrop;
 
@@ -25,7 +25,7 @@ impl Default for CryptoBuf {
 }
 
 impl CryptoBuf {
-    pub const MAX_SIZE: usize = SignatureAlgorithm::MAX_ALG_LEN_BYTES;
+    pub const MAX_SIZE: usize = Curve256::CURVE_SIZE * 2;
 
     pub fn new(bytes: &[u8]) -> Result<CryptoBuf, CryptoError> {
         let mut vec = ArrayVec::new();
@@ -76,7 +76,7 @@ impl CryptoBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::ecdsa::EcdsaAlgorithm;
+    use crate::{ecdsa::EcdsaAlgorithm, SignatureAlgorithm};
 
     use super::*;
 

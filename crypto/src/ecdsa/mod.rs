@@ -8,6 +8,7 @@ use crate::CryptoError;
 use core::marker::PhantomData;
 use zeroize::ZeroizeOnDrop;
 
+// TODO(clundin): Filter by feature flag?
 pub mod curve_256;
 pub mod curve_384;
 
@@ -15,19 +16,11 @@ pub trait EcdsaCurveParams {
     const CURVE_SIZE: usize;
 }
 
-
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum EcdsaAlgorithm {
     Bit256,
     Bit384,
-}
-
-#[cfg(test)]
-impl Default for EcdsaAlgorithm {
-    fn default() -> Self {
-        Self::Bit384
-    }
 }
 
 impl EcdsaAlgorithm {

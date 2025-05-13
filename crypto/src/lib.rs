@@ -36,7 +36,6 @@ pub trait DpeProfile {
 }
 
 #[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
 #[cfg(feature = "ml-dsa")]
 pub enum MldsaAlgorithm {
     KL87,
@@ -59,7 +58,6 @@ impl MldsaAlgorithm {
 }
 
 #[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum SignatureAlgorithm {
     Ecdsa(ecdsa::EcdsaAlgorithm),
     #[cfg(feature = "ml-dsa")]
@@ -68,20 +66,6 @@ pub enum SignatureAlgorithm {
 }
 
 impl SignatureAlgorithm {
-    #[cfg(feature = "ml-dsa")]
-    const MAX_ALG_LEN: Self = Self::MlDsa(MldsaAlgorithm::KL87);
-    #[cfg(feature = "ml-dsa")]
-    // The ML-DSA private key will be the largest item.
-    pub(crate) const MAX_ALG_LEN_BYTES: usize = Self::MAX_ALG_LEN.private_key_size();
-
-    #[cfg(not(feature = "ml-dsa"))]
-    //TODO(clundin): Remove this constant.
-    const MAX_ALG_LEN: Self = Self::Ecdsa(ecdsa::EcdsaAlgorithm::Bit384);
-    #[cfg(not(feature = "ml-dsa"))]
-    // When ML-DSA is not enabled, the largest item in the set of (private key, public key, and
-    // signature) is the signature.
-    pub(crate) const MAX_ALG_LEN_BYTES: usize = Self::MAX_ALG_LEN.signature_size();
-
     pub const fn digest_size(self) -> usize {
         match self {
             SignatureAlgorithm::Ecdsa(ec) => ec.curve_size(),
@@ -360,27 +344,4 @@ pub trait Crypto: DpeProfile {
     ///
     /// * `pub_key` - The public key previously created in a derivation.
     fn export_public_key(&self, pub_key: &Self::PubKey) -> Result<ExportedPubKey, CryptoError>;
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use strum::IntoEnumIterator;
-
-    #[test]
-    fn test_max_alg_len_size() {
-        let max_len = SignatureAlgorithm::iter()
-            .map(|x| {
-                [
-                    x.private_key_size(),
-                    x.public_key_size(),
-                    x.signature_size(),
-                ]
-                .into_iter()
-                .max()
-                .unwrap()
-            })
-            .max()
-            .unwrap();
-        assert_eq!(SignatureAlgorithm::MAX_ALG_LEN_BYTES, max_len);
-    }
 }
