@@ -3,10 +3,7 @@
 use core::marker::PhantomData;
 
 use crate::{
-    ecdsa::{
-        curve_256::EcdsaPub256,
-        *,
-    },
+    ecdsa::{curve_256::EcdsaPub256, *},
     hkdf::*,
     Crypto, CryptoBuf, CryptoError, Digest, DpeProfile, ExportedCdiHandle, ExportedPubKey, Hasher,
     Signature, SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,

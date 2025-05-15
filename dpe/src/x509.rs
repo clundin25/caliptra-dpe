@@ -2590,7 +2590,7 @@ pub(crate) mod tests {
     use crate::tci::{TciMeasurement, TciNodeData};
     use crate::x509::{CertWriter, DirectoryString, MeasurementData, Name};
     use crate::{DpeProfile, DPE_PROFILE};
-    use crypto::ecdsa::{curve_256::EcdsaSignature256, EcdsaSignature, EcdsaPub, EcdsaPubKey};
+    use crypto::ecdsa::{curve_256::EcdsaSignature256, EcdsaPub, EcdsaPubKey, EcdsaSignature};
     use openssl::hash::{Hasher, MessageDigest};
     use platform::{ArrayVec, CertValidity, OtherName, SubjectAltName, MAX_KEY_IDENTIFIER_SIZE};
     use std::str;
