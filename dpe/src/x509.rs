@@ -18,7 +18,7 @@ use caliptra_cfi_lib_git::cfi_launder;
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq};
 use crypto::{
     ecdsa::{EcdsaPubKey, EcdsaSignature},
-    Crypto, Digest, ExportedPubKey, Hasher, Signature, SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
+    Crypto, Digest, ExportedPubKey, Hasher, Signature, MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "disable_x509"))]
 use platform::CertValidity;
@@ -2440,7 +2440,6 @@ fn create_dpe_cert_or_csr(
     cert_type: CertificateType,
     output_cert_or_csr: &mut [u8],
 ) -> Result<CreateDpeCertResult, DpeErrorCode> {
-    let algs = DPE_PROFILE.alg();
     let digest = get_dpe_measurement_digest(dpe, env, args.handle, args.locality)?;
 
     let mut exported_cdi_handle = None;
@@ -2591,11 +2590,7 @@ pub(crate) mod tests {
     use crate::tci::{TciMeasurement, TciNodeData};
     use crate::x509::{CertWriter, DirectoryString, MeasurementData, Name};
     use crate::{DpeProfile, DPE_PROFILE};
-    use crypto::ecdsa::EcdsaSignature;
-    use crypto::{
-        ecdsa::{curve_256::EcdsaSignature256, EcdsaPub, EcdsaPubKey},
-        CryptoBuf,
-    };
+    use crypto::ecdsa::{curve_256::EcdsaSignature256, EcdsaSignature, EcdsaPub, EcdsaPubKey};
     use openssl::hash::{Hasher, MessageDigest};
     use platform::{ArrayVec, CertValidity, OtherName, SubjectAltName, MAX_KEY_IDENTIFIER_SIZE};
     use std::str;

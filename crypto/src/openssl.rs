@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 
 use crate::{
     ecdsa::{
-        curve_256::{Curve256, EcdsaPub256},
+        curve_256::EcdsaPub256,
         *,
     },
     hkdf::*,
