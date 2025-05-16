@@ -297,7 +297,6 @@ dependencies = [
  "ecdsa",
  "hkdf",
  "ml-dsa",
- "openssl",
  "p256",
  "p384",
  "pkcs8",
@@ -865,7 +864,6 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "cfg-if",
- "openssl",
  "ufmt",
  "x509-cert",
 ]
@@ -1081,7 +1079,6 @@ dependencies = [
  "dpe",
  "env_logger",
  "log",
- "openssl",
  "platform",
 ]
 

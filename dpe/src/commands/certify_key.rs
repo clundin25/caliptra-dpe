@@ -183,7 +183,7 @@ mod tests {
     };
     use crypto::{
         ecdsa::{EcdsaAlgorithm, EcdsaPub, EcdsaPubKey},
-        Crypto, ExportedPubKey, OpensslCrypto, SignatureAlgorithm,
+        Crypto, ExportedPubKey, RustCryptoImpl, SignatureAlgorithm,
     };
     use der::{Decode, Encode};
     use openssl::{
@@ -228,7 +228,7 @@ mod tests {
         for mark_dice_extensions_critical in [true, false] {
             CfiCounter::reset_for_test();
             let mut env = DpeEnv::<TestTypes> {
-                crypto: OpensslCrypto::new(),
+                crypto: RustCryptoImpl::new(),
                 platform: DEFAULT_PLATFORM,
             };
             let flags = {
@@ -285,7 +285,7 @@ mod tests {
         for mark_dice_extensions_critical in [true, false] {
             CfiCounter::reset_for_test();
             let mut env = DpeEnv::<TestTypes> {
-                crypto: OpensslCrypto::new(),
+                crypto: RustCryptoImpl::new(),
                 platform: DEFAULT_PLATFORM,
             };
             let flags = {
@@ -536,7 +536,7 @@ mod tests {
     fn test_certify_key_order() {
         CfiCounter::reset_for_test();
         let mut env = DpeEnv::<TestTypes> {
-            crypto: OpensslCrypto::new(),
+            crypto: RustCryptoImpl::new(),
             platform: DEFAULT_PLATFORM,
         };
         let mut dpe = DpeInstance::new(

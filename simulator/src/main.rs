@@ -1,6 +1,6 @@
 // Licensed under the Apache-2.0 license
 
-#[cfg(not(any(feature = "openssl", feature = "rustcrypto")))]
+#[cfg(not(feature = "rustcrypto"))]
 compile_error!("must provide a crypto implementation");
 
 use clap::Parser;
@@ -24,9 +24,6 @@ use dpe::{
 
 #[cfg(feature = "rustcrypto")]
 use crypto::RustCryptoImpl;
-
-#[cfg(feature = "openssl")]
-use crypto::OpensslCrypto;
 
 const SOCKET_PATH: &str = "/tmp/dpe-sim.socket";
 
@@ -129,9 +126,6 @@ struct SimTypes {}
 impl DpeTypes for SimTypes {
     #[cfg(feature = "rustcrypto")]
     type Crypto<'a> = RustCryptoImpl;
-    #[cfg(feature = "openssl")]
-    type Crypto<'a> = OpensslCrypto<Curve256>;
-
     type Platform<'a> = DefaultPlatform;
 }
 

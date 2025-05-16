@@ -3,18 +3,13 @@ Licensed under the Apache-2.0 license.
 Abstract:
     Generic trait definition of Cryptographic functions.
 --*/
-#![cfg_attr(not(any(feature = "openssl", feature = "rustcrypto", test)), no_std)]
+#![cfg_attr(not(any(feature = "rustcrypto", test)), no_std)]
 
-#[cfg(feature = "openssl")]
-pub use crate::openssl::*;
 use ecdsa::EcdsaSignature;
 pub use signer::*;
 
 #[cfg(feature = "rustcrypto")]
 pub use crate::rustcrypto::*;
-
-#[cfg(feature = "openssl")]
-pub mod openssl;
 
 #[cfg(feature = "rustcrypto")]
 pub mod rustcrypto;
@@ -22,8 +17,9 @@ pub mod rustcrypto;
 #[cfg(feature = "deterministic_rand")]
 pub use rand::*;
 
-#[cfg(any(feature = "openssl", feature = "rustcrypto"))]
+#[cfg(feature = "rustcrypto")]
 mod hkdf;
+
 mod signer;
 
 // TODO(clundin): Put this behind a feature flag?

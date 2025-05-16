@@ -3,7 +3,7 @@
 #[cfg(feature = "rustcrypto")]
 use std::ops::Deref;
 
-#[cfg(any(feature = "rustcrypto", feature = "openssl"))]
+#[cfg(feature = "rustcrypto")]
 use std::{env, fs, path::Path};
 
 fn main() {
@@ -16,39 +16,6 @@ fn main() {
     println!("cargo:rerun-if-changed={ALIAS_PRIV_384}");
     println!("cargo:rerun-if-changed={ALIAS_PRIV_MLDSA_87}");
 
-    //TODO(clundin): Refactor / include support for ML-DSA 87 when the openssl crate supports it.
-    #[cfg(feature = "openssl")]
-    let (pem_256, pem_384) = {
-        use openssl::{ec, nid, pkey};
-
-        const CURVE_ID_256: nid::Nid = nid::Nid::X9_62_PRIME256V1;
-        const CURVE_ID_384: nid::Nid = nid::Nid::SECP384R1;
-
-        // generate 256 bit private key in PEM format
-        let pem_256 = if Path::new(ALIAS_PRIV_256).exists() {
-            let input_pem = fs::read(ALIAS_PRIV_256).unwrap();
-            let ec_priv: ec::EcKey<pkey::Private> =
-                ec::EcKey::private_key_from_pem(&input_pem).unwrap();
-            ec_priv.private_key_to_pem().unwrap()
-        } else {
-            let group = ec::EcGroup::from_curve_name(CURVE_ID_256).unwrap();
-            let ec_key = ec::EcKey::generate(&group).unwrap();
-            ec_key.private_key_to_pem().unwrap()
-        };
-
-        // generate 384 bit private key in PEM format
-        let pem_384 = if Path::new(ALIAS_PRIV_384).exists() {
-            let input_pem = fs::read(ALIAS_PRIV_384).unwrap();
-            let ec_priv: ec::EcKey<pkey::Private> =
-                ec::EcKey::private_key_from_pem(&input_pem).unwrap();
-            ec_priv.private_key_to_pem().unwrap()
-        } else {
-            let group = ec::EcGroup::from_curve_name(CURVE_ID_384).unwrap();
-            let ec_key = ec::EcKey::generate(&group).unwrap();
-            ec_key.private_key_to_pem().unwrap()
-        };
-        (pem_256, pem_384)
-    };
     #[cfg(feature = "rustcrypto")]
     let (pem_256, pem_384) = {
         use {
@@ -130,7 +97,7 @@ fn main() {
         (pem_256, pem_384)
     };
 
-    #[cfg(any(feature = "rustcrypto", feature = "openssl"))]
+    #[cfg(feature = "rustcrypto")]
     {
         let out_dir = env::var_os("OUT_DIR").unwrap();
 
