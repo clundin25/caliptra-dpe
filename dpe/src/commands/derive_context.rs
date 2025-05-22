@@ -3,7 +3,9 @@ use super::CommandExecution;
 use crate::{
     context::{ActiveContextArgs, Context, ContextHandle, ContextState, ContextType},
     dpe_instance::{DpeEnv, DpeInstance, DpeInstanceFlags, DpeTypes},
-    response::{DeriveContextExportedCdiResp, DeriveContextResp, DpeErrorCode, Response},
+    response::{
+        DeriveContextExportedCdiResp, DeriveContextResp, DpeErrorCode, Response, ResponseHdr,
+    },
     tci::TciMeasurement,
     x509::{create_exported_dpe_cert, CreateDpeCertArgs, CreateDpeCertResult},
     DPE_PROFILE, MAX_CERT_SIZE,
@@ -280,7 +282,7 @@ impl CommandExecution for DeriveContextCmd {
                         handle: dpe.contexts[parent_idx].handle,
                         // Should be ignored since retain_parent cannot be true
                         parent_handle: ContextHandle::default(),
-                        resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+                        resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
                     }));
                 } else {
                     Err(DpeErrorCode::ArgumentNotSupported)?
@@ -336,7 +338,7 @@ impl CommandExecution for DeriveContextCmd {
                     return Ok(Response::DeriveContextExportedCdi(DeriveContextExportedCdiResp {
                         handle: ContextHandle::new_invalid(),
                         parent_handle: dpe.contexts[parent_idx].handle,
-                        resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+                        resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
                         exported_cdi: exported_cdi_handle,
                         certificate_size: cert_size,
                         new_certificate: cert,
@@ -406,7 +408,7 @@ impl CommandExecution for DeriveContextCmd {
         Ok(Response::DeriveContext(DeriveContextResp {
             handle: child_handle,
             parent_handle: dpe.contexts[parent_idx].handle,
-            resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+            resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
         }))
     }
 }
@@ -668,7 +670,7 @@ mod tests {
             Ok(Response::DeriveContext(DeriveContextResp {
                 handle: ContextHandle::default(),
                 parent_handle: ContextHandle([0xff; ContextHandle::SIZE]),
-                resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+                resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
             })),
             DeriveContextCmd {
                 handle: ContextHandle::default(),
@@ -685,7 +687,7 @@ mod tests {
             Ok(Response::DeriveContext(DeriveContextResp {
                 handle: RANDOM_HANDLE,
                 parent_handle: ContextHandle([0xff; ContextHandle::SIZE]),
-                resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+                resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
             })),
             DeriveContextCmd {
                 handle: ContextHandle::default(),
@@ -815,7 +817,7 @@ mod tests {
             Ok(Response::DeriveContext(DeriveContextResp {
                 handle: ContextHandle::default(),
                 parent_handle: ContextHandle([0xff; ContextHandle::SIZE]),
-                resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+                resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
             })),
             DeriveContextCmd {
                 handle: ContextHandle::default(),
@@ -832,7 +834,7 @@ mod tests {
             Ok(Response::DeriveContext(DeriveContextResp {
                 handle: ContextHandle::default(),
                 parent_handle: ContextHandle::default(),
-                resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+                resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
             })),
             DeriveContextCmd {
                 handle: ContextHandle::default(),
@@ -881,7 +883,7 @@ mod tests {
         assert_eq!(parent_handle, RANDOM_HANDLE);
         assert_eq!(handle, next_random_handle);
         assert_ne!(parent_handle, ContextHandle::default());
-        assert_eq!(resp_hdr, dpe.response_hdr(DpeErrorCode::NoError));
+        assert_eq!(resp_hdr, ResponseHdr::new(DpeErrorCode::NoError));
     }
 
     #[test]
@@ -1031,7 +1033,7 @@ mod tests {
             Ok(Response::DeriveContext(DeriveContextResp {
                 handle: ContextHandle::default(),
                 parent_handle: ContextHandle::default(),
-                resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+                resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
             })),
             DeriveContextCmd {
                 handle: ContextHandle::default(),

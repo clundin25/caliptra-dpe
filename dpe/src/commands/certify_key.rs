@@ -3,7 +3,7 @@ use super::CommandExecution;
 use crate::{
     context::ContextHandle,
     dpe_instance::{DpeEnv, DpeInstance, DpeInstanceFlags, DpeTypes},
-    response::{CertifyKeyResp, DpeErrorCode, Response},
+    response::{CertifyKeyResp, DpeErrorCode, Response, ResponseHdr},
     x509::{create_dpe_cert, create_dpe_csr, CreateDpeCertArgs, CreateDpeCertResult},
     DPE_PROFILE, MAX_CERT_SIZE,
 };
@@ -159,7 +159,7 @@ impl CommandExecution for CertifyKeyCmd {
             derived_pubkey_y,
             cert_size,
             cert,
-            resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+            resp_hdr: ResponseHdr::new(DpeErrorCode::NoError),
         }))
     }
 }
