@@ -7,20 +7,8 @@ Abstract:
 use crate::CryptoError;
 use zeroize::ZeroizeOnDrop;
 
-/// Marker type to statically check conversions.
-pub mod curve_384 {
-    use super::*; 
-
-    #[derive(Clone)]
-    pub struct Curve384;
-    const CURVE_SIZE: usize = 384 / 8;
-
-    pub type EcdsaPub384 = EcdsaPub<CURVE_SIZE>;
-    pub type EcdsaSignature384 = EcdsaSig<CURVE_SIZE>;
-}
-
 pub mod curve_256 {
-    use super::*; 
+    use super::*;
 
     /// Marker type to statically check conversions.
     #[derive(Clone)]
@@ -31,7 +19,17 @@ pub mod curve_256 {
     pub type EcdsaSignature256 = EcdsaSig<CURVE_SIZE>;
 }
 
+pub mod curve_384 {
+    use super::*;
 
+    /// Marker type to statically check conversions.
+    #[derive(Clone)]
+    pub struct Curve384;
+    const CURVE_SIZE: usize = 384 / 8;
+
+    pub type EcdsaPub384 = EcdsaPub<CURVE_SIZE>;
+    pub type EcdsaSignature384 = EcdsaSig<CURVE_SIZE>;
+}
 
 #[derive(Clone)]
 pub enum EcdsaPubKey {
@@ -70,8 +68,8 @@ impl EcdsaPubKey {
 
     pub fn curve_size(&self) -> usize {
         match self {
-            Self::Ecdsa256(key) => key.curve_size(),
-            Self::Ecdsa384(key) => key.curve_size(),
+            Self::Ecdsa256(key) => curve_256::EcdsaPub256::curve_size(),
+            Self::Ecdsa384(key) => curve_384::EcdsaPub384::curve_size(),
         }
     }
 }
@@ -138,8 +136,17 @@ impl<const K: usize> EcdsaPub<K> {
         Ok((&self.x, &self.y))
     }
 
-    pub const fn curve_size(&self) -> usize {
+    pub const fn curve_size() -> usize {
         K
+    }
+}
+
+impl<const K: usize> From<([u8; K], [u8; K])> for EcdsaPub<K> {
+    fn from(value: ([u8; K], [u8; K])) -> Self {
+        Self {
+            x: value.0,
+            y: value.1,
+        }
     }
 }
 
@@ -153,7 +160,6 @@ impl<const K: usize> Default for EcdsaSig<K> {
 }
 
 impl<const K: usize> EcdsaSig<K> {
-    pub const CURVE_SIZE: usize = K;
     pub fn from_slice(r: &[u8; K], s: &[u8; K]) -> Result<Self, CryptoError> {
         let mut key = Self::default();
         key.r.clone_from_slice(r);

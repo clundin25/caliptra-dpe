@@ -104,35 +104,25 @@ impl CommandExecution for SignCmd {
         }
 
         let digest = Digest::new(&self.digest)?;
-        match self.sign(dpe, env, idx, &digest)? {
-            Signature::Ecdsa(EcdsaSignature::Ecdsa256(sig)) => {
-                // Rotate the handle if it isn't the default context.
-                dpe.roll_onetime_use_handle(env, idx)?;
+        let sig = match self.sign(dpe, env, idx, &digest)? {
+            #[cfg(feature = "dpe_profile_p256_sha256")]
+            Signature::Ecdsa(EcdsaSignature::Ecdsa256(sig)) => sig,
+            #[cfg(feature = "dpe_profile_p384_sha384")]
+            Signature::Ecdsa(EcdsaSignature::Ecdsa384(sig)) => sig,
+            _ => Err(DpeErrorCode::InvalidArgument)?,
+        };
 
-                let (&sig_r, &sig_s) = sig.as_slice()?;
+        let (sig_r, sig_s) = sig.as_slice()?;
 
-                Ok(Response::Sign(SignResp {
-                    new_context_handle: dpe.contexts[idx].handle,
-                    sig_r,
-                    sig_s,
-                    resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
-                }))
-            }
-            Signature::Ecdsa(EcdsaSignature::Ecdsa384(sig)) => {
-                todo!()
-                // Rotate the handle if it isn't the default context.
-                //dpe.roll_onetime_use_handle(env, idx)?;
-                //
-                //let (&sig_r, &sig_s) = sig.as_slice()?;
-                //
-                //Ok(Response::Sign(SignResp {
-                //    new_context_handle: dpe.contexts[idx].handle,
-                //    sig_r,
-                //    sig_s,
-                //    resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
-                //}))
-            }
-        }
+        // Rotate the handle if it isn't the default context.
+        dpe.roll_onetime_use_handle(env, idx)?;
+
+        Ok(Response::Sign(SignResp {
+            new_context_handle: dpe.contexts[idx].handle,
+            sig_r: *sig_r,
+            sig_s: *sig_s,
+            resp_hdr: dpe.response_hdr(DpeErrorCode::NoError),
+        }))
     }
 }
 

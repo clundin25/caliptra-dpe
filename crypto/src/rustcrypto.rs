@@ -3,7 +3,7 @@
 use crate::{
     ecdsa::{
         curve_256::{Curve256, EcdsaPub256, EcdsaSignature256},
-        curve_384::{Curve384, EcdsaSignature384},
+        curve_384::{Curve384, EcdsaPub384, EcdsaSignature384},
         EcdsaAlgorithm, EcdsaPubKey, EcdsaSignature,
     },
     hkdf::*,
@@ -146,12 +146,26 @@ impl<S: DpeSignatureAlgorithm> RustCryptoImpl<S> {
                 y.clone_from_slice(point.y().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice());
 
                 Ok((
-                   RustCryptoPrivKey(secret),
+                    RustCryptoPrivKey(secret),
                     ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa256(EcdsaPub256::from_slice(&x, &y)?)),
                 ))
             }
             Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
-                todo!()
+                let secret =
+                    hkdf_get_priv_key(Algorithm::Ecdsa(EcdsaAlgorithm::Bit384), cdi, label, info)?;
+                let signing = p384::ecdsa::SigningKey::from_slice(secret.as_slice())?;
+                let verifying = p384::ecdsa::VerifyingKey::from(&signing);
+                let point = verifying.to_encoded_point(false);
+
+                let mut x = [0; EcdsaAlgorithm::Bit384.curve_size()];
+                let mut y = [0; EcdsaAlgorithm::Bit384.curve_size()];
+                x.clone_from_slice(point.x().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice());
+                y.clone_from_slice(point.y().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice());
+
+                Ok((
+                    RustCryptoPrivKey(secret),
+                    ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa384(EcdsaPub384::from_slice(&x, &y)?)),
+                ))
             }
         }
     }
@@ -173,8 +187,9 @@ impl<S: DpeSignatureAlgorithm> Crypto for RustCryptoImpl<S> {
             Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
                 RustCryptoHasher(Box::new(Sha256::default()))
             }
-            _ => todo!(),
-            //AlgLen::Bit384 => RustCryptoHasher(Box::new(Sha384::default())),
+            Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
+                RustCryptoHasher(Box::new(Sha384::default()))
+            }
         };
         Ok(hasher)
     }
@@ -245,20 +260,24 @@ impl<S: DpeSignatureAlgorithm> Crypto for RustCryptoImpl<S> {
     fn sign_with_alias(&mut self, digest: &Digest) -> Result<super::Signature, CryptoError> {
         match S::SIGNATURE_ALGORITHM {
             Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
-                let signing_key = p256::ecdsa::SigningKey::from_sec1_pem(include_str!(
-                    concat!(env!("OUT_DIR"), "/alias_priv_256.pem")
-                ))?;
+                let signing_key = p256::ecdsa::SigningKey::from_sec1_pem(include_str!(concat!(
+                    env!("OUT_DIR"),
+                    "/alias_priv_256.pem"
+                )))?;
                 let sig: p256::ecdsa::Signature = signing_key.sign_prehash(digest.bytes())?;
-                Ok(super::Signature::Ecdsa(EcdsaSignature::Ecdsa256(sig.try_into()?)))
+                Ok(super::Signature::Ecdsa(EcdsaSignature::Ecdsa256(
+                    sig.try_into()?,
+                )))
             }
             Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
-                let signing_key = p384::ecdsa::SigningKey::from_sec1_pem(include_str!(
-                    concat!(env!("OUT_DIR"), "/alias_priv_384.pem")
-                ))?;
+                let signing_key = p384::ecdsa::SigningKey::from_sec1_pem(include_str!(concat!(
+                    env!("OUT_DIR"),
+                    "/alias_priv_384.pem"
+                )))?;
                 let sig: p384::ecdsa::Signature = signing_key.sign_prehash(digest.bytes())?;
-                //sig.try_into()
-                todo!()
-
+                Ok(super::Signature::Ecdsa(EcdsaSignature::Ecdsa384(
+                    sig.try_into()?,
+                )))
             }
         }
     }
@@ -274,14 +293,17 @@ impl<S: DpeSignatureAlgorithm> Crypto for RustCryptoImpl<S> {
                 let sig: p256::ecdsa::Signature =
                     p256::ecdsa::SigningKey::from_slice(priv_key.0.as_slice())?
                         .sign_prehash(digest.bytes())?;
-                Ok(super::Signature::Ecdsa(EcdsaSignature::Ecdsa256(sig.try_into()?)))
+                Ok(super::Signature::Ecdsa(EcdsaSignature::Ecdsa256(
+                    sig.try_into()?,
+                )))
             }
             Algorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
                 let sig: p384::ecdsa::Signature =
                     p384::ecdsa::SigningKey::from_slice(priv_key.0.as_slice())?
                         .sign_prehash(digest.bytes())?;
-                //sig.try_into()
-                todo!()
+                Ok(super::Signature::Ecdsa(EcdsaSignature::Ecdsa384(
+                    sig.try_into()?,
+                )))
             }
         }
     }
@@ -303,8 +325,7 @@ impl<S: DpeSignatureAlgorithm> Crypto for RustCryptoImpl<S> {
                 hasher.update(&[0x4u8])?;
                 hasher.update(x)?;
                 hasher.update(y)?;
-
-            },
+            }
         }
 
         let digest = hasher.finish()?;
