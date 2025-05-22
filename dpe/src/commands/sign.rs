@@ -112,7 +112,7 @@ impl CommandExecution for SignCmd {
             _ => Err(DpeErrorCode::InvalidArgument)?,
         };
 
-        let (sig_r, sig_s) = sig.as_slice()?;
+        let (&sig_r, &sig_s) = sig.as_slice()?;
 
         // Rotate the handle if it isn't the default context.
         dpe.roll_onetime_use_handle(env, idx)?;
