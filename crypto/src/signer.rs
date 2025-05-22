@@ -1,9 +1,6 @@
 // Licensed under the Apache-2.0 license
 
-use crate::{
-    ecdsa::{curve_384::Curve384},
-    CryptoError,
-};
+use crate::{ecdsa::curve_384::Curve384, CryptoError};
 use arrayvec::ArrayVec;
 use zeroize::ZeroizeOnDrop;
 

@@ -183,7 +183,7 @@ mod tests {
     };
     use crypto::{
         ecdsa::{EcdsaAlgorithm, EcdsaPub, EcdsaPubKey},
-        Crypto, ExportedPubKey, RustCryptoImpl, Algorithm,
+        Algorithm, Crypto, ExportedPubKey, RustCryptoImpl,
     };
     use der::{Decode, Encode};
     use openssl::{
