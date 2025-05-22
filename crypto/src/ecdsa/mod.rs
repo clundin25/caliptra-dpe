@@ -7,9 +7,31 @@ Abstract:
 use crate::CryptoError;
 use zeroize::ZeroizeOnDrop;
 
-// TODO(clundin): Filter by feature flag?
-pub mod curve_256;
-pub mod curve_384;
+/// Marker type to statically check conversions.
+pub mod curve_384 {
+    use super::*; 
+
+    #[derive(Clone)]
+    pub struct Curve384;
+    const CURVE_SIZE: usize = 384 / 8;
+
+    pub type EcdsaPub384 = EcdsaPub<CURVE_SIZE>;
+    pub type EcdsaSignature384 = EcdsaSig<CURVE_SIZE>;
+}
+
+pub mod curve_256 {
+    use super::*; 
+
+    /// Marker type to statically check conversions.
+    #[derive(Clone)]
+    pub struct Curve256;
+    const CURVE_SIZE: usize = 256 / 8;
+
+    pub type EcdsaPub256 = EcdsaPub<CURVE_SIZE>;
+    pub type EcdsaSignature256 = EcdsaSig<CURVE_SIZE>;
+}
+
+
 
 #[derive(Clone)]
 pub enum EcdsaPubKey {
