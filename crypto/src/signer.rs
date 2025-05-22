@@ -73,7 +73,7 @@ impl CryptoBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ecdsa::EcdsaAlgorithm, SignatureAlgorithm};
+    use crate::{ecdsa::EcdsaAlgorithm, Algorithm};
 
     use super::*;
 
@@ -84,14 +84,14 @@ mod tests {
         // array length must not exceed MAX_SIZE
         assert_eq!(CryptoBuf::new(arr), Err(CryptoError::Size));
 
-        let arr = &[1u8; SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256).signature_size()];
+        let arr = &[1u8; Algorithm::Ecdsa(EcdsaAlgorithm::Bit256).signature_size()];
         // test new
         match CryptoBuf::new(arr) {
             Ok(buf) => {
                 assert_eq!(arr, buf.bytes());
                 assert_eq!(
                     buf.len(),
-                    SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256).signature_size()
+                    Algorithm::Ecdsa(EcdsaAlgorithm::Bit256).signature_size()
                 );
             }
             Err(_) => panic!("CryptoBuf::new failed"),

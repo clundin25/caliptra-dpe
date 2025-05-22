@@ -29,12 +29,12 @@ pub const MAX_EXPORTED_CDI_SIZE: usize = 32;
 pub type ExportedCdiHandle = [u8; MAX_EXPORTED_CDI_SIZE];
 
 pub trait DpeSignatureAlgorithm {
-    const SIGNATURE_ALGORITHM: SignatureAlgorithm;
+    const SIGNATURE_ALGORITHM: Algorithm;
 }
 
 pub trait DpeDigestAlgorithm {
     // TODO: Change to a digest enum.
-    const DIGEST_ALGORITHM: SignatureAlgorithm;
+    const DIGEST_ALGORITHM: Algorithm;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -60,42 +60,42 @@ impl MldsaAlgorithm {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum SignatureAlgorithm {
+pub enum Algorithm {
     Ecdsa(ecdsa::EcdsaAlgorithm),
     #[cfg(feature = "ml-dsa")]
     MlDsa(MldsaAlgorithm),
     // NOTE: If a larger length is added, MUST update Algorithm::MAX_ALG_LEN
 }
 
-impl SignatureAlgorithm {
+impl Algorithm {
     pub const fn digest_size(self) -> usize {
         match self {
-            SignatureAlgorithm::Ecdsa(ec) => ec.curve_size(),
+            Algorithm::Ecdsa(ec) => ec.curve_size(),
             #[cfg(feature = "ml-dsa")]
             // TODO(clundin): Need to figure out what digest size is appropriate.
-            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 32,
+            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 32,
         }
     }
 
     pub const fn signature_size(self) -> usize {
         match self {
-            SignatureAlgorithm::Ecdsa(ec) => ec.curve_size() * 2,
+            Algorithm::Ecdsa(ec) => ec.curve_size() * 2,
             #[cfg(feature = "ml-dsa")]
-            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 4627,
+            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 4627,
         }
     }
     pub const fn public_key_size(self) -> usize {
         match self {
-            SignatureAlgorithm::Ecdsa(ec) => ec.curve_size(),
+            Algorithm::Ecdsa(ec) => ec.curve_size(),
             #[cfg(feature = "ml-dsa")]
-            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 2592,
+            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 2592,
         }
     }
     pub const fn private_key_size(self) -> usize {
         match self {
-            SignatureAlgorithm::Ecdsa(ec) => ec.curve_size(),
+            Algorithm::Ecdsa(ec) => ec.curve_size(),
             #[cfg(feature = "ml-dsa")]
-            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 4896,
+            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 4896,
         }
     }
 }

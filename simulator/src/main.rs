@@ -5,6 +5,7 @@ compile_error!("must provide a crypto implementation");
 
 use clap::Parser;
 use crypto::ecdsa::curve_256::Curve256;
+use crypto::Ecdsa256RustCrypto;
 use dpe::dpe_instance::DpeInstanceFlags;
 use log::{error, info, trace, warn};
 use platform::default::{DefaultPlatform, DefaultPlatformProfile};
@@ -124,8 +125,12 @@ struct Args {
 struct SimTypes {}
 
 impl DpeTypes for SimTypes {
-    #[cfg(feature = "rustcrypto")]
-    type Crypto<'a> = RustCryptoImpl;
+    #[cfg(feature = "dpe_profile_p256_sha256")]
+    type Crypto<'a> = Ecdsa256RustCrypto;
+
+    #[cfg(feature = "dpe_profile_p384_sha384")]
+    type Crypto<'a> = Ecdsa384RustCrypto;
+
     type Platform<'a> = DefaultPlatform;
 }
 

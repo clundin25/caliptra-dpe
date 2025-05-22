@@ -8,7 +8,7 @@ use crate::{
     },
     hkdf::*,
     Crypto, CryptoBuf, CryptoError, Digest, DpeSignatureAlgorithm, ExportedCdiHandle,
-    ExportedPubKey, Hasher, SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
+    ExportedPubKey, Hasher, Algorithm, MAX_EXPORTED_CDI_SIZE,
 };
 use core::marker::PhantomData;
 use core::ops::Deref;
@@ -77,6 +77,16 @@ impl Hasher for RustCryptoHasher {
 // Currently only supports one CDI handle but in the future we may want to support multiple.
 const MAX_CDI_HANDLES: usize = 1;
 
+pub type Ecdsa256RustCrypto = RustCryptoImpl<Curve256>;
+impl DpeSignatureAlgorithm for Curve256 {
+    const SIGNATURE_ALGORITHM: Algorithm = Algorithm::Ecdsa(EcdsaAlgorithm::Bit256);
+}
+
+pub type Ecdsa384RustCrypto = RustCryptoImpl<Curve384>;
+impl DpeSignatureAlgorithm for Curve384 {
+    const SIGNATURE_ALGORITHM: Algorithm = Algorithm::Ecdsa(EcdsaAlgorithm::Bit384);
+}
+
 pub struct RustCryptoImpl<S: DpeSignatureAlgorithm> {
     rng: StdRng,
     export_cdi_slots: Vec<(<RustCryptoImpl<S> as Crypto>::Cdi, ExportedCdiHandle)>,
@@ -112,7 +122,7 @@ impl<S: DpeSignatureAlgorithm> RustCryptoImpl<S> {
 
     fn derive_key_pair_inner(
         &mut self,
-        algs: SignatureAlgorithm,
+        algs: Algorithm,
         cdi: &<RustCryptoImpl<S> as Crypto>::Cdi,
         label: &[u8],
         info: &[u8],
@@ -124,7 +134,7 @@ impl<S: DpeSignatureAlgorithm> RustCryptoImpl<S> {
         CryptoError,
     > {
         let secret = hkdf_get_priv_key(
-            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256),
+            Algorithm::Ecdsa(EcdsaAlgorithm::Bit256),
             cdi,
             label,
             info,
@@ -149,7 +159,7 @@ impl<S: DpeSignatureAlgorithm> Crypto for RustCryptoImpl<S> {
 
     fn hash_initialize(&mut self) -> Result<Self::Hasher<'_>, CryptoError> {
         let hasher = match S::SIGNATURE_ALGORITHM {
-            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
+            Algorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
                 RustCryptoHasher(Box::new(Sha256::default()))
             }
             _ => todo!(),
@@ -300,4 +310,3 @@ impl<S: DpeSignatureAlgorithm> Crypto for RustCryptoImpl<S> {
     }
 }
 
-pub type EcdsaRustCrypto = RustCryptoImpl<Curve256>;
