@@ -1,9 +1,16 @@
 // Licensed under the Apache-2.0 license
 
 use crate::{
-    hkdf::*, AlgLen, Crypto, CryptoBuf, CryptoError, Digest, EcdsaPub, EcdsaSig, ExportedCdiHandle,
-    ExportedPubKey, Hasher, MAX_EXPORTED_CDI_SIZE,
+    ecdsa::{
+        curve_256::{Curve256, EcdsaPub256, EcdsaSignature256},
+        curve_384::{Curve384, EcdsaSignature384},
+        EcdsaAlgorithm, EcdsaCurveParams, EcdsaPubKey, EcdsaSignature,
+    },
+    hkdf::*,
+    Crypto, CryptoBuf, CryptoError, Digest, DpeSignatureAlgorithm, ExportedCdiHandle,
+    ExportedPubKey, Hasher, SignatureAlgorithm, MAX_EXPORTED_CDI_SIZE,
 };
+use core::marker::PhantomData;
 use core::ops::Deref;
 use ecdsa::{signature::hazmat::PrehashSigner, Signature};
 use p256::NistP256;
@@ -31,22 +38,28 @@ impl From<sec1::Error> for CryptoError {
     }
 }
 
-impl TryFrom<Signature<NistP256>> for EcdsaSig {
+impl TryFrom<Signature<NistP256>> for EcdsaSignature256 {
     type Error = CryptoError;
 
     fn try_from(value: Signature<NistP256>) -> Result<Self, Self::Error> {
-        let r = CryptoBuf::new(&value.r().deref().to_bytes())?;
-        let s = CryptoBuf::new(&value.s().deref().to_bytes())?;
-        Ok(EcdsaSig { r, s })
+        let mut r = [0; Curve256::CURVE_SIZE];
+        let mut s = [0; Curve256::CURVE_SIZE];
+        r.clone_from_slice(value.r().deref().to_bytes().as_slice());
+        s.clone_from_slice(value.s().deref().to_bytes().as_slice());
+
+        EcdsaSignature256::from_slice(&r, &s)
     }
 }
-impl TryFrom<Signature<NistP384>> for EcdsaSig {
+impl TryFrom<Signature<NistP384>> for EcdsaSignature384 {
     type Error = CryptoError;
 
     fn try_from(value: Signature<NistP384>) -> Result<Self, Self::Error> {
-        let r = CryptoBuf::new(&value.r().deref().to_bytes())?;
-        let s = CryptoBuf::new(&value.s().deref().to_bytes())?;
-        Ok(EcdsaSig { r, s })
+        let mut r = [0; Curve384::CURVE_SIZE];
+        let mut s = [0; Curve384::CURVE_SIZE];
+        r.clone_from_slice(value.r().deref().to_bytes().as_slice());
+        s.clone_from_slice(value.s().deref().to_bytes().as_slice());
+
+        EcdsaSignature384::from_slice(&r, &s)
     }
 }
 
@@ -64,23 +77,25 @@ impl Hasher for RustCryptoHasher {
 // Currently only supports one CDI handle but in the future we may want to support multiple.
 const MAX_CDI_HANDLES: usize = 1;
 
-pub struct RustCryptoImpl {
+pub struct RustCryptoImpl<S: DpeSignatureAlgorithm> {
     rng: StdRng,
-    export_cdi_slots: Vec<(<RustCryptoImpl as Crypto>::Cdi, ExportedCdiHandle)>,
+    export_cdi_slots: Vec<(<RustCryptoImpl<S> as Crypto>::Cdi, ExportedCdiHandle)>,
+    _signature_alg: PhantomData<S>,
 }
 
-impl Default for RustCryptoImpl {
+impl<S: DpeSignatureAlgorithm> Default for RustCryptoImpl<S> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl RustCryptoImpl {
+impl<S: DpeSignatureAlgorithm> RustCryptoImpl<S> {
     #[cfg(not(feature = "deterministic_rand"))]
     pub fn new() -> Self {
         Self {
             rng: StdRng::from_entropy(),
             export_cdi_slots: Vec::new(),
+            _marker: PhantomData::default(),
         }
     }
 
@@ -91,51 +106,54 @@ impl RustCryptoImpl {
         Self {
             rng: seeded_rng,
             export_cdi_slots: Vec::new(),
+            _signature_alg: PhantomData::default(),
         }
     }
 
     fn derive_key_pair_inner(
         &mut self,
-        algs: AlgLen,
-        cdi: &<RustCryptoImpl as Crypto>::Cdi,
+        algs: SignatureAlgorithm,
+        cdi: &<RustCryptoImpl<S> as Crypto>::Cdi,
         label: &[u8],
         info: &[u8],
-    ) -> Result<(<RustCryptoImpl as Crypto>::PrivKey, EcdsaPub), CryptoError> {
-        let secret = hkdf_get_priv_key(algs, cdi, label, info)?;
-        match algs {
-            AlgLen::Bit256 => {
-                let signing = p256::ecdsa::SigningKey::from_slice(secret.bytes())?;
-                let verifying = p256::ecdsa::VerifyingKey::from(&signing);
-                let point = verifying.to_encoded_point(false);
-                let x = CryptoBuf::new(point.x().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice())?;
-                let y = CryptoBuf::new(point.y().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice())?;
-                Ok((secret, EcdsaPub256::new { x, y }))
-            }
-            AlgLen::Bit384 => {
-                let signing = p384::ecdsa::SigningKey::from_slice(secret.bytes())?;
-                let verifying = p384::ecdsa::VerifyingKey::from(&signing);
-                let point = verifying.to_encoded_point(false);
-                let x = CryptoBuf::new(point.x().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice())?;
-                let y = CryptoBuf::new(point.y().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice())?;
-                Ok((secret, EcdsaPub { x, y }))
-            }
-        }
+    ) -> Result<
+        (
+            <RustCryptoImpl<S> as Crypto>::PrivKey,
+            <RustCryptoImpl<S> as Crypto>::PubKey,
+        ),
+        CryptoError,
+    > {
+        let secret = hkdf_get_priv_key(
+            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256),
+            cdi,
+            label,
+            info,
+        )?;
+        let signing = p256::ecdsa::SigningKey::from_slice(secret.as_slice())?;
+        let verifying = p256::ecdsa::VerifyingKey::from(&signing);
+        let point = verifying.to_encoded_point(false);
+        todo!()
     }
 }
 
-impl Crypto for RustCryptoImpl {
+pub struct RustCryptoPrivKey(Vec<u8>);
+
+impl<S: DpeSignatureAlgorithm> Crypto for RustCryptoImpl<S> {
     type Cdi = Vec<u8>;
     type Hasher<'c>
         = RustCryptoHasher
     where
         Self: 'c;
-    type PrivKey = CryptoBuf;
-    type PubKey = EcdsaPub;
+    type PrivKey = RustCryptoPrivKey;
+    type PubKey = ExportedPubKey;
 
-    fn hash_initialize(&mut self, algs: AlgLen) -> Result<Self::Hasher<'_>, CryptoError> {
-        let hasher = match algs {
-            AlgLen::Bit256 => RustCryptoHasher(Box::new(Sha256::default())),
-            AlgLen::Bit384 => RustCryptoHasher(Box::new(Sha384::default())),
+    fn hash_initialize(&mut self) -> Result<Self::Hasher<'_>, CryptoError> {
+        let hasher = match S::SIGNATURE_ALGORITHM {
+            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
+                RustCryptoHasher(Box::new(Sha256::default()))
+            }
+            _ => todo!(),
+            //AlgLen::Bit384 => RustCryptoHasher(Box::new(Sha384::default())),
         };
         Ok(hasher)
     }
@@ -146,23 +164,17 @@ impl Crypto for RustCryptoImpl {
     }
 
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
-    fn derive_cdi(
-        &mut self,
-        algs: AlgLen,
-        measurement: &Digest,
-        info: &[u8],
-    ) -> Result<Self::Cdi, CryptoError> {
-        hkdf_derive_cdi(algs, measurement, info)
+    fn derive_cdi(&mut self, measurement: &Digest, info: &[u8]) -> Result<Self::Cdi, CryptoError> {
+        hkdf_derive_cdi(S::SIGNATURE_ALGORITHM, measurement, info)
     }
 
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
     fn derive_exported_cdi(
         &mut self,
-        algs: AlgLen,
         measurement: &Digest,
         info: &[u8],
     ) -> Result<ExportedCdiHandle, CryptoError> {
-        let cdi = hkdf_derive_cdi(algs, measurement, info)?;
+        let cdi = hkdf_derive_cdi(S::SIGNATURE_ALGORITHM, measurement, info)?;
 
         for (stored_cdi, _) in self.export_cdi_slots.iter() {
             if *stored_cdi == cdi {
@@ -183,18 +195,16 @@ impl Crypto for RustCryptoImpl {
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
     fn derive_key_pair(
         &mut self,
-        algs: AlgLen,
         cdi: &Self::Cdi,
         label: &[u8],
         info: &[u8],
     ) -> Result<(Self::PrivKey, Self::PubKey), CryptoError> {
-        self.derive_key_pair_inner(algs, cdi, label, info)
+        self.derive_key_pair_inner(S::SIGNATURE_ALGORITHM, cdi, label, info)
     }
 
     #[cfg_attr(not(feature = "no-cfi"), cfi_impl_fn)]
     fn derive_key_pair_exported(
         &mut self,
-        algs: AlgLen,
         exported_handle: &ExportedCdiHandle,
         label: &[u8],
         info: &[u8],
@@ -208,66 +218,86 @@ impl Crypto for RustCryptoImpl {
             }
             cdi.ok_or(CryptoError::InvalidExportedCdiHandle)
         }?;
-        self.derive_key_pair_inner(algs, &cdi, label, info)
+        self.derive_key_pair_inner(S::SIGNATURE_ALGORITHM, &cdi, label, info)
     }
 
-    fn sign_with_alias(
-        &mut self,
-        algs: AlgLen,
-        digest: &Digest,
-    ) -> Result<super::Signature, CryptoError> {
-        let sig =
-            match algs {
-                AlgLen::Bit256 => {
-                    let signing_key = p256::ecdsa::SigningKey::from_sec1_pem(include_str!(
-                        concat!(env!("OUT_DIR"), "/alias_priv_256.pem")
-                    ))?;
-                    let sig: p256::ecdsa::Signature = signing_key.sign_prehash(digest.bytes())?;
-                    sig.try_into()
-                }
-                AlgLen::Bit384 => {
-                    let signing_key = p384::ecdsa::SigningKey::from_sec1_pem(include_str!(
-                        concat!(env!("OUT_DIR"), "/alias_priv_384.pem")
-                    ))?;
-                    let sig: p384::ecdsa::Signature = signing_key.sign_prehash(digest.bytes())?;
-                    sig.try_into()
-                }
-            }?;
-        Ok(super::Signature::Ecdsa(sig))
+    fn sign_with_alias(&mut self, digest: &Digest) -> Result<super::Signature, CryptoError> {
+        todo!()
+        //let sig =
+        //    match S::SIGNATURE_ALGORITHM {
+        //        SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
+        //            let signing_key = p256::ecdsa::SigningKey::from_sec1_pem(include_str!(
+        //                concat!(env!("OUT_DIR"), "/alias_priv_256.pem")
+        //            ))?;
+        //            let sig: p256::ecdsa::Signature = signing_key.sign_prehash(digest.bytes())?;
+        //            //sig.try_into()
+        //            //sig.try_into()
+        //            todo!()
+        //        }
+        //        SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
+        //            let signing_key = p384::ecdsa::SigningKey::from_sec1_pem(include_str!(
+        //                concat!(env!("OUT_DIR"), "/alias_priv_384.pem")
+        //            ))?;
+        //            let sig: p384::ecdsa::Signature = signing_key.sign_prehash(digest.bytes())?;
+        //            //sig.try_into()
+        //            todo!()
+        //
+        //        }
+        //    }?;
+        //Ok(super::Signature::Ecdsa(sig))
     }
 
     fn sign_with_derived(
         &mut self,
-        algs: AlgLen,
         digest: &Digest,
         priv_key: &Self::PrivKey,
         _pub_key: &Self::PubKey,
     ) -> Result<super::Signature, CryptoError> {
-        let sig = match algs {
-            AlgLen::Bit256 => {
-                let sig: p256::ecdsa::Signature =
-                    p256::ecdsa::SigningKey::from_slice(priv_key.bytes())?
-                        .sign_prehash(digest.bytes())?;
-                sig.try_into()
-            }
-            AlgLen::Bit384 => {
-                let sig: p384::ecdsa::Signature =
-                    p384::ecdsa::SigningKey::from_slice(priv_key.bytes())?
-                        .sign_prehash(digest.bytes())?;
-                sig.try_into()
-            }
-        }?;
-        Ok(super::Signature::Ecdsa(sig))
+        todo!()
+        //let sig = match S::SIGNATURE_ALGORITHM {
+        //    SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
+        //        let sig: p256::ecdsa::Signature =
+        //            p256::ecdsa::SigningKey::from_slice(priv_key.0.as_slice())?
+        //                .sign_prehash(digest.bytes())?;
+        //        sig.try_into()
+        //    }
+        //    SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
+        //        let sig: p384::ecdsa::Signature =
+        //            p384::ecdsa::SigningKey::from_slice(priv_key.0.as_slice())?
+        //                .sign_prehash(digest.bytes())?;
+        //        sig.try_into()
+        //    }
+        //}?;
+        //Ok(super::Signature::Ecdsa(sig))
+    }
+
+    fn get_pubkey_serial(
+        &mut self,
+        pub_key: &ExportedPubKey,
+        serial: &mut [u8],
+    ) -> Result<(), CryptoError> {
+        if serial.len() < S::SIGNATURE_ALGORITHM.digest_size() {
+            return Err(CryptoError::Size);
+        }
+
+        let mut hasher = self.hash_initialize()?;
+        let ExportedPubKey::Ecdsa(pub_key) = pub_key;
+        let (x, y) = pub_key.as_slice()?;
+
+        hasher.update(&[0x4u8])?;
+        hasher.update(x)?;
+        hasher.update(y)?;
+        let digest = hasher.finish()?;
+
+        CryptoBuf::write_hex_str(&digest, serial)
     }
 
     fn export_public_key(
         &self,
         pub_key: &Self::PubKey,
     ) -> Result<crate::ExportedPubKey, CryptoError> {
-        let EcdsaPub { x, y } = pub_key;
-        Ok(ExportedPubKey::Ecdsa(EcdsaPub {
-            x: CryptoBuf::new(x.bytes())?,
-            y: CryptoBuf::new(y.bytes())?,
-        }))
+        Ok(pub_key.clone())
     }
 }
+
+pub type EcdsaRustCrypto = RustCryptoImpl<Curve256>;

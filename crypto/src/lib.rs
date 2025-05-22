@@ -28,8 +28,13 @@ pub mod ecdsa;
 pub const MAX_EXPORTED_CDI_SIZE: usize = 32;
 pub type ExportedCdiHandle = [u8; MAX_EXPORTED_CDI_SIZE];
 
-pub trait DpeProfile {
+pub trait DpeSignatureAlgorithm {
     const SIGNATURE_ALGORITHM: SignatureAlgorithm;
+}
+
+pub trait DpeDigestAlgorithm {
+    // TODO: Change to a digest enum.
+    const DIGEST_ALGORITHM: SignatureAlgorithm;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -158,7 +163,7 @@ pub enum Signature {
     Ecdsa(EcdsaSignature),
 }
 
-pub trait Crypto: DpeProfile {
+pub trait Crypto {
     type Cdi;
     type Hasher<'c>: Hasher
     where

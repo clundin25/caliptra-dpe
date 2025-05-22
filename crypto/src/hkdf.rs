@@ -52,21 +52,21 @@ pub fn hkdf_get_priv_key(
     cdi: &[u8],
     label: &[u8],
     info: &[u8],
-) -> Result<CryptoBuf, CryptoError> {
+) -> Result<Vec<u8>, CryptoError> {
     match algs {
         SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
             let hk = Hkdf::<Sha256>::new(Some(info), cdi);
             let mut priv_key = [0u8; EcdsaAlgorithm::Bit256.curve_size()];
             hk.expand(label, &mut priv_key)?;
 
-            Ok(CryptoBuf::new(&priv_key).unwrap())
+            Ok(priv_key.into())
         }
         SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
             let hk = Hkdf::<Sha384>::new(Some(info), cdi);
             let mut priv_key = [0u8; EcdsaAlgorithm::Bit384.curve_size()];
             hk.expand(label, &mut priv_key)?;
 
-            Ok(CryptoBuf::new(&priv_key).unwrap())
+            Ok(priv_key.into())
         }
         #[cfg(feature = "ml-dsa")]
         SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => {
@@ -74,7 +74,7 @@ pub fn hkdf_get_priv_key(
             let mut priv_key = [0u8; MldsaAlgorithm::KL87.xi_size()];
             hk.expand(label, &mut priv_key)?;
 
-            Ok(CryptoBuf::new(&priv_key).unwrap())
+            Ok(priv_key.into())
         }
     }
 }
