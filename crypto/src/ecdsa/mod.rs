@@ -5,19 +5,19 @@ Abstract:
 --*/
 
 use crate::CryptoError;
-use core::marker::PhantomData;
 use zeroize::ZeroizeOnDrop;
 
 // TODO(clundin): Filter by feature flag?
 pub mod curve_256;
 pub mod curve_384;
 
-pub trait EcdsaCurveParams {
-    const CURVE_SIZE: usize;
+#[derive(Clone)]
+pub enum EcdsaPubKey {
+    Ecdsa256(curve_256::EcdsaPub256),
+    Ecdsa384(curve_384::EcdsaPub384),
 }
 
 #[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum EcdsaAlgorithm {
     Bit256,
     Bit384,
@@ -30,12 +30,6 @@ impl EcdsaAlgorithm {
             EcdsaAlgorithm::Bit384 => 384 / 8,
         }
     }
-}
-
-#[derive(Clone)]
-pub enum EcdsaPubKey {
-    Ecdsa256(curve_256::EcdsaPub256),
-    Ecdsa384(curve_384::EcdsaPub384),
 }
 
 impl EcdsaPubKey {
@@ -61,10 +55,9 @@ impl EcdsaPubKey {
 }
 
 #[derive(Clone)]
-pub struct EcdsaSig<const K: usize, T: EcdsaCurveParams> {
+pub struct EcdsaSig<const K: usize> {
     pub r: [u8; K],
     pub s: [u8; K],
-    _alg: PhantomData<T>,
 }
 
 #[derive(Clone)]
@@ -97,24 +90,21 @@ impl EcdsaSignature {
 
 /// An ECDSA public key
 #[derive(ZeroizeOnDrop, Clone)]
-pub struct EcdsaPub<const K: usize, T: EcdsaCurveParams> {
+pub struct EcdsaPub<const K: usize> {
     x: [u8; K],
     y: [u8; K],
-    _alg: PhantomData<T>,
 }
 
-impl<const K: usize, T: EcdsaCurveParams> Default for EcdsaPub<K, T> {
+impl<const K: usize> Default for EcdsaPub<K> {
     fn default() -> Self {
         Self {
             x: [0; K],
             y: [0; K],
-            _alg: PhantomData::default(),
         }
     }
 }
 
-impl<const K: usize, T: EcdsaCurveParams> EcdsaPub<K, T> {
-    pub const CURVE_SIZE: usize = K;
+impl<const K: usize> EcdsaPub<K> {
     pub fn from_slice(x: &[u8; K], y: &[u8; K]) -> Result<Self, CryptoError> {
         let mut key = Self::default();
         key.x.clone_from_slice(x);
@@ -131,17 +121,16 @@ impl<const K: usize, T: EcdsaCurveParams> EcdsaPub<K, T> {
     }
 }
 
-impl<const K: usize, T: EcdsaCurveParams> Default for EcdsaSig<K, T> {
+impl<const K: usize> Default for EcdsaSig<K> {
     fn default() -> Self {
         Self {
             r: [0; K],
             s: [0; K],
-            _alg: PhantomData::default(),
         }
     }
 }
 
-impl<const K: usize, T: EcdsaCurveParams> EcdsaSig<K, T> {
+impl<const K: usize> EcdsaSig<K> {
     pub const CURVE_SIZE: usize = K;
     pub fn from_slice(r: &[u8; K], s: &[u8; K]) -> Result<Self, CryptoError> {
         let mut key = Self::default();

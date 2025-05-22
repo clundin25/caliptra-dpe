@@ -2,12 +2,11 @@
 
 use super::*;
 
+/// Marker type to statically check conversions.
 #[derive(Clone)]
 pub struct Curve384;
-impl EcdsaCurveParams for Curve384 {
-    const CURVE_SIZE: usize = EcdsaAlgorithm::Bit384.curve_size();
-}
+const CURVE_SIZE: usize = 384 / 8;
 
 // TODO(clundin): Is there a cleaner way that avoids two generics?
-pub type EcdsaPub384 = EcdsaPub<{ Curve384::CURVE_SIZE }, Curve384>;
-pub type EcdsaSignature384 = EcdsaSig<{ Curve384::CURVE_SIZE }, Curve384>;
+pub type EcdsaPub384 = EcdsaPub<CURVE_SIZE>;
+pub type EcdsaSignature384 = EcdsaSig<CURVE_SIZE>;

@@ -5,9 +5,7 @@ use super::*;
 /// Marker type to statically check conversions.
 #[derive(Clone)]
 pub struct Curve256;
-impl EcdsaCurveParams for Curve256 {
-    const CURVE_SIZE: usize = EcdsaAlgorithm::Bit256.curve_size();
-}
+const CURVE_SIZE: usize = 256 / 8;
 
-pub type EcdsaPub256 = EcdsaPub<{ Curve256::CURVE_SIZE }, Curve256>;
-pub type EcdsaSignature256 = EcdsaSig<{ Curve256::CURVE_SIZE }, Curve256>;
+pub type EcdsaPub256 = EcdsaPub<CURVE_SIZE>;
+pub type EcdsaSignature256 = EcdsaSig<CURVE_SIZE>;

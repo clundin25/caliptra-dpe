@@ -4,7 +4,7 @@ use crate::{
     ecdsa::{
         curve_256::{Curve256, EcdsaPub256, EcdsaSignature256},
         curve_384::{Curve384, EcdsaSignature384},
-        EcdsaAlgorithm, EcdsaCurveParams, EcdsaPubKey, EcdsaSignature,
+        EcdsaAlgorithm,
     },
     hkdf::*,
     Crypto, CryptoBuf, CryptoError, Digest, DpeSignatureAlgorithm, ExportedCdiHandle,
@@ -42,8 +42,8 @@ impl TryFrom<Signature<NistP256>> for EcdsaSignature256 {
     type Error = CryptoError;
 
     fn try_from(value: Signature<NistP256>) -> Result<Self, Self::Error> {
-        let mut r = [0; Curve256::CURVE_SIZE];
-        let mut s = [0; Curve256::CURVE_SIZE];
+        let mut r = [0; EcdsaAlgorithm::Bit256.curve_size()];
+        let mut s = [0; EcdsaAlgorithm::Bit256.curve_size()];
         r.clone_from_slice(value.r().deref().to_bytes().as_slice());
         s.clone_from_slice(value.s().deref().to_bytes().as_slice());
 
@@ -54,8 +54,8 @@ impl TryFrom<Signature<NistP384>> for EcdsaSignature384 {
     type Error = CryptoError;
 
     fn try_from(value: Signature<NistP384>) -> Result<Self, Self::Error> {
-        let mut r = [0; Curve384::CURVE_SIZE];
-        let mut s = [0; Curve384::CURVE_SIZE];
+        let mut r = [0; EcdsaAlgorithm::Bit384.curve_size()];
+        let mut s = [0; EcdsaAlgorithm::Bit384.curve_size()];
         r.clone_from_slice(value.r().deref().to_bytes().as_slice());
         s.clone_from_slice(value.s().deref().to_bytes().as_slice());
 
