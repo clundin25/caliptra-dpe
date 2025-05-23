@@ -6,7 +6,7 @@ Abstract:
 #![cfg_attr(not(any(feature = "rustcrypto", test)), no_std)]
 
 use ecdsa::EcdsaSignature;
-pub use signer::*;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[cfg(feature = "rustcrypto")]
 pub use crate::rustcrypto::*;
@@ -19,8 +19,6 @@ pub use rand::*;
 
 #[cfg(feature = "rustcrypto")]
 mod hkdf;
-
-mod signer;
 
 // TODO(clundin): Put this behind a feature flag?
 pub mod ecdsa;
@@ -152,7 +150,33 @@ pub trait Hasher: Sized {
     fn finish(self) -> Result<Digest, CryptoError>;
 }
 
-pub type Digest = CryptoBuf;
+#[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
+#[repr(C)]
+pub struct Sha256([u8; 32]);
+
+#[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
+#[repr(C)]
+pub struct Sha384([u8; 48]);
+
+pub enum Digest {
+    Sha256(Sha256),
+    Sha384(Sha384),
+}
+
+impl Digest {
+    pub fn len(&self) -> usize {
+        match self {
+            Digest::Sha256(dig) => dig.0.len(),
+            Digest::Sha384(dig) => dig.0.len(),
+        }
+    }
+    pub fn bytes(&self) -> &[u8] {
+        match self {
+            Digest::Sha256(dig) => dig.0.as_slice(),
+            Digest::Sha384(dig) => dig.0.as_slice(),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub enum ExportedPubKey {

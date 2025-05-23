@@ -13,18 +13,11 @@ use caliptra_cfi_lib_git::cfi_launder;
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq, cfi_assert_ne};
 use cfg_if::cfg_if;
-use crypto::{ecdsa::EcdsaSignature, Crypto, Digest, Signature};
+use crypto::{ecdsa::EcdsaSignature, Crypto, Digest, Sha256, Signature};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[repr(C)]
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    zerocopy::IntoBytes,
-    zerocopy::FromBytes,
-    zerocopy::Immutable,
-    zerocopy::KnownLayout,
-)]
+#[derive(Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout)]
 pub struct SignFlags(pub u32);
 
 bitflags! {
@@ -32,15 +25,7 @@ bitflags! {
 }
 
 #[repr(C)]
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    zerocopy::IntoBytes,
-    zerocopy::FromBytes,
-    zerocopy::Immutable,
-    zerocopy::KnownLayout,
-)]
+#[derive(Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout)]
 pub struct SignCmd {
     pub handle: ContextHandle,
     pub label: [u8; DPE_PROFILE.get_hash_size()],
@@ -103,7 +88,18 @@ impl CommandExecution for SignCmd {
             }
         }
 
-        let digest = Digest::new(&self.digest)?;
+        #[cfg(feature = "dpe_profile_p256_sha256")]
+        let digest = Digest::Sha256(
+            Sha256::read_from_bytes(&self.digest)
+                .map_err(|_| DpeErrorCode::Crypto(crypto::CryptoError::Size))?,
+        );
+
+        #[cfg(feature = "dpe_profile_p384_sha384")]
+        let digest = Digest::Sha384(
+            Sha384::read_from_bytes(&self.digest)
+                .map_err(|_| DpeErrorCode::Crypto(crypto::CryptoError::Size))?,
+        );
+
         let sig = match self.sign(dpe, env, idx, &digest)? {
             #[cfg(feature = "dpe_profile_p256_sha256")]
             Signature::Ecdsa(EcdsaSignature::Ecdsa256(sig)) => sig,

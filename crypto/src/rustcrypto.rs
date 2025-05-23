@@ -7,7 +7,7 @@ use crate::{
         EcdsaAlgorithm, EcdsaPubKey, EcdsaSignature,
     },
     hkdf::*,
-    Algorithm, Crypto, CryptoBuf, CryptoError, Digest, DpeSignatureAlgorithm, ExportedCdiHandle,
+    Algorithm, Crypto, CryptoError, Digest, DpeSignatureAlgorithm, ExportedCdiHandle,
     ExportedPubKey, Hasher, MAX_EXPORTED_CDI_SIZE,
 };
 use core::marker::PhantomData;
@@ -19,6 +19,7 @@ use rand::{rngs::StdRng, RngCore, SeedableRng};
 use sec1::DecodeEcPrivateKey;
 use sha2::{digest::DynDigest, Sha256, Sha384};
 use std::boxed::Box;
+use zerocopy::FromBytes;
 
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_derive_git::cfi_impl_fn;
@@ -70,7 +71,10 @@ impl Hasher for RustCryptoHasher {
         Ok(())
     }
     fn finish(self) -> Result<Digest, CryptoError> {
-        Digest::new(&self.0.finalize())
+        let digest = &self.0.finalize();
+        let sha256 = crate::Sha256::read_from_bytes(digest).map_err(|_| CryptoError::Size)?;
+        let digest = Digest::Sha256(sha256);
+        Ok(digest)
     }
 }
 
@@ -329,7 +333,28 @@ impl<S: DpeSignatureAlgorithm> Crypto for RustCryptoImpl<S> {
         }
 
         let digest = hasher.finish()?;
-        CryptoBuf::write_hex_str(&digest, serial)
+        let src = digest.bytes();
+        if serial.len() != src.len() * 2 {
+            return Err(CryptoError::Size);
+        }
+
+        let mut curr_idx = 0;
+        const HEX_CHARS: &[u8; 16] = b"0123456789ABCDEF";
+        for &b in src {
+            let h1 = (b >> 4) as usize;
+            let h2 = (b & 0xF) as usize;
+            if h1 >= HEX_CHARS.len()
+                || h2 >= HEX_CHARS.len()
+                || curr_idx >= serial.len()
+                || curr_idx + 1 >= serial.len()
+            {
+                return Err(CryptoError::CryptoLibError(0));
+            }
+            serial[curr_idx] = HEX_CHARS[h1];
+            serial[curr_idx + 1] = HEX_CHARS[h2];
+            curr_idx += 2;
+        }
+        Ok(())
     }
 
     fn export_public_key(
