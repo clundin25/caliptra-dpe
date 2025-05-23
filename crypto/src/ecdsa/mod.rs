@@ -6,6 +6,8 @@ Abstract:
 
 use crate::CryptoError;
 use zeroize::ZeroizeOnDrop;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
+
 
 pub mod curve_256 {
     use super::*;
@@ -74,7 +76,8 @@ impl EcdsaPubKey {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, FromBytes, IntoBytes, KnownLayout, Immutable)]
+#[repr(C)]
 pub struct EcdsaSig<const K: usize> {
     pub r: [u8; K],
     pub s: [u8; K],
@@ -109,7 +112,8 @@ impl EcdsaSignature {
 }
 
 /// An ECDSA public key
-#[derive(ZeroizeOnDrop, Clone)]
+#[derive(Clone, FromBytes, IntoBytes, KnownLayout, Immutable, ZeroizeOnDrop)]
+#[repr(C)]
 pub struct EcdsaPub<const K: usize> {
     x: [u8; K],
     y: [u8; K],
