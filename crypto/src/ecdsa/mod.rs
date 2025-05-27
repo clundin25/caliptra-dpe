@@ -4,12 +4,12 @@ Abstract:
     Generic trait definition of Cryptographic functions.
 --*/
 
-use crate::CryptoError;
-use zeroize::ZeroizeOnDrop;
+use crate::{CryptoError, DigestAlgorithm, DigestType, SignatureAlgorithm, SignatureType};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
-
+use zeroize::ZeroizeOnDrop;
 
 pub mod curve_256 {
+
     use super::*;
 
     /// Marker type to statically check conversions.
@@ -19,6 +19,15 @@ pub mod curve_256 {
 
     pub type EcdsaPub256 = EcdsaPub<CURVE_SIZE>;
     pub type EcdsaSignature256 = EcdsaSig<CURVE_SIZE>;
+
+    impl SignatureType for Curve256 {
+        const SIGNATURE_ALGORITHM: SignatureAlgorithm =
+            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256);
+    }
+
+    impl DigestType for Curve256 {
+        const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha256;
+    }
 }
 
 pub mod curve_384 {
@@ -31,6 +40,15 @@ pub mod curve_384 {
 
     pub type EcdsaPub384 = EcdsaPub<CURVE_SIZE>;
     pub type EcdsaSignature384 = EcdsaSig<CURVE_SIZE>;
+
+    impl SignatureType for Curve384 {
+        const SIGNATURE_ALGORITHM: SignatureAlgorithm =
+            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384);
+    }
+
+    impl DigestType for Curve384 {
+        const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha384;
+    }
 }
 
 #[derive(Clone)]

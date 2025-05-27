@@ -26,13 +26,20 @@ pub mod ecdsa;
 pub const MAX_EXPORTED_CDI_SIZE: usize = 32;
 pub type ExportedCdiHandle = [u8; MAX_EXPORTED_CDI_SIZE];
 
-pub trait DpeSignatureAlgorithm {
-    const SIGNATURE_ALGORITHM: Algorithm;
+pub trait SignatureType {
+    const SIGNATURE_ALGORITHM: SignatureAlgorithm;
+
+    fn signature_algorithm(&self) -> SignatureAlgorithm {
+        Self::SIGNATURE_ALGORITHM
+    }
 }
 
-pub trait DpeDigestAlgorithm {
-    // TODO: Change to a digest enum.
-    const DIGEST_ALGORITHM: Algorithm;
+pub trait DigestType {
+    const DIGEST_ALGORITHM: DigestAlgorithm;
+
+    fn digest_algorithm(&self) -> DigestAlgorithm {
+        Self::DIGEST_ALGORITHM
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -58,42 +65,47 @@ impl MldsaAlgorithm {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Algorithm {
+pub enum DigestAlgorithm {
+    Sha256,
+    Sha384,
+}
+
+impl DigestAlgorithm {
+    const fn size(&self) -> usize {
+        match self {
+            DigestAlgorithm::Sha256 => 32,
+            DigestAlgorithm::Sha384 => 48,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum SignatureAlgorithm {
     Ecdsa(ecdsa::EcdsaAlgorithm),
     #[cfg(feature = "ml-dsa")]
     MlDsa(MldsaAlgorithm),
-    // NOTE: If a larger length is added, MUST update Algorithm::MAX_ALG_LEN
 }
 
-impl Algorithm {
-    pub const fn digest_size(self) -> usize {
-        match self {
-            Algorithm::Ecdsa(ec) => ec.curve_size(),
-            #[cfg(feature = "ml-dsa")]
-            // TODO(clundin): Need to figure out what digest size is appropriate.
-            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 32,
-        }
-    }
-
+impl SignatureAlgorithm {
     pub const fn signature_size(self) -> usize {
         match self {
-            Algorithm::Ecdsa(ec) => ec.curve_size() * 2,
+            SignatureAlgorithm::Ecdsa(ec) => ec.curve_size() * 2,
             #[cfg(feature = "ml-dsa")]
-            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 4627,
+            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 4627,
         }
     }
     pub const fn public_key_size(self) -> usize {
         match self {
-            Algorithm::Ecdsa(ec) => ec.curve_size(),
+            SignatureAlgorithm::Ecdsa(ec) => ec.curve_size(),
             #[cfg(feature = "ml-dsa")]
-            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 2592,
+            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 2592,
         }
     }
     pub const fn private_key_size(self) -> usize {
         match self {
-            Algorithm::Ecdsa(ec) => ec.curve_size(),
+            SignatureAlgorithm::Ecdsa(ec) => ec.curve_size(),
             #[cfg(feature = "ml-dsa")]
-            Algorithm::MlDsa(MldsaAlgorithm::KL87) => 4896,
+            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 4896,
         }
     }
 }
@@ -152,11 +164,19 @@ pub trait Hasher: Sized {
 
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 #[repr(C)]
-pub struct Sha256([u8; 32]);
+pub struct Sha256([u8; DigestAlgorithm::Sha256.size()]);
+
+impl DigestType for Sha256 {
+    const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha256;
+}
 
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 #[repr(C)]
-pub struct Sha384([u8; 48]);
+pub struct Sha384([u8; DigestAlgorithm::Sha256.size()]);
+
+impl DigestType for Sha384 {
+    const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha384;
+}
 
 pub enum Digest {
     Sha256(Sha256),
@@ -186,6 +206,8 @@ pub enum ExportedPubKey {
 pub enum Signature {
     Ecdsa(EcdsaSignature),
 }
+
+pub trait CryptoEngine: Crypto + SignatureType + DigestType {}
 
 pub trait Crypto {
     type Cdi;
@@ -364,7 +386,7 @@ pub trait Crypto {
         pub_key: &Self::PubKey,
     ) -> Result<Signature, CryptoError>;
 
-    /// Converts the internel `PubKey` into a `CryptoBuf` based struct.
+    /// Converts the internel `PubKey` into a `ExportedPubKey`.
     ///
     /// # Arguments
     ///

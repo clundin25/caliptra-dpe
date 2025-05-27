@@ -22,7 +22,7 @@ use caliptra_cfi_lib_git::cfi_launder;
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq};
 use cfg_if::cfg_if;
 use core::mem::align_of;
-use crypto::{Crypto, Digest, Hasher};
+use crypto::{Crypto, CryptoEngine, Digest, Hasher, SignatureType};
 use platform::Platform;
 #[cfg(not(feature = "disable_internal_dice"))]
 use platform::MAX_CHUNK_SIZE;
@@ -30,7 +30,7 @@ use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 use zeroize::Zeroize;
 
 pub trait DpeTypes {
-    type Crypto<'a>: Crypto
+    type Crypto<'a>: CryptoEngine
     where
         Self: 'a;
     type Platform<'a>: Platform
@@ -99,6 +99,7 @@ impl DpeInstance {
     ) -> Result<DpeInstance, DpeErrorCode> {
         let updated_support = support.preprocess_support();
         const CONTEXT_INITIALIZER: Context = Context::new();
+        env.crypto.signature_algorithm();
         let mut dpe = DpeInstance {
             version: Self::VERSION,
             contexts: [CONTEXT_INITIALIZER; MAX_HANDLES],

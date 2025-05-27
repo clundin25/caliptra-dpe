@@ -86,11 +86,11 @@ impl DpeProfile {
     pub const fn get_hash_size(&self) -> usize {
         self.get_tci_size()
     }
-    pub const fn alg(&self) -> crypto::Algorithm {
+    pub const fn alg(&self) -> crypto::SignatureAlgorithm {
         //TODO(clundin): add a Dpe profile for ml-dsa
         match self {
-            DpeProfile::P256Sha256 => crypto::Algorithm::Ecdsa(EcdsaAlgorithm::Bit256),
-            DpeProfile::P384Sha384 => crypto::Algorithm::Ecdsa(EcdsaAlgorithm::Bit384),
+            DpeProfile::P256Sha256 => crypto::SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256),
+            DpeProfile::P384Sha384 => crypto::SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384),
         }
     }
 }
