@@ -2727,8 +2727,8 @@ pub(crate) mod tests {
 
     #[test]
     fn test_subject_pubkey() {
-        let mut cert = [0u8; 256];
-        let test_key = EcdsaPubKey::Ecdsa256(EcdsaPub::default());
+        let mut cert = [0u8; 384];
+        let test_key = EcdsaPubKey::Ecdsa384(EcdsaPub::default());
 
         let mut w = CertWriter::new(&mut cert, true);
         let bytes_written = w.encode_ecdsa_subject_pubkey_info(&test_key).unwrap();

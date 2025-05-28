@@ -72,8 +72,8 @@ impl Hasher for RustCryptoHasher {
     }
     fn finish(self) -> Result<Digest, CryptoError> {
         let digest = &self.0.finalize();
-        let sha256 = crate::Sha256::read_from_bytes(digest).map_err(|_| CryptoError::Size)?;
-        let digest = Digest::Sha256(sha256);
+        let sha384 = crate::Sha384::read_from_bytes(digest).map_err(|_| CryptoError::Size)?;
+        let digest = Digest::Sha384(sha384);
         Ok(digest)
     }
 }

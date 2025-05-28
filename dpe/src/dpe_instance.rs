@@ -99,7 +99,6 @@ impl DpeInstance {
     ) -> Result<DpeInstance, DpeErrorCode> {
         let updated_support = support.preprocess_support();
         const CONTEXT_INITIALIZER: Context = Context::new();
-        env.crypto.signature_algorithm();
         let mut dpe = DpeInstance {
             version: Self::VERSION,
             contexts: [CONTEXT_INITIALIZER; MAX_HANDLES],
