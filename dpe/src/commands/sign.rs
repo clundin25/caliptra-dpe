@@ -13,7 +13,7 @@ use caliptra_cfi_lib_git::cfi_launder;
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq, cfi_assert_ne};
 use cfg_if::cfg_if;
-use crypto::{ecdsa::EcdsaSignature, Crypto, Digest, Sha256, Signature};
+use crypto::{ecdsa::EcdsaSignature, Crypto, Digest, Signature};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[repr(C)]
@@ -90,13 +90,13 @@ impl CommandExecution for SignCmd {
 
         #[cfg(feature = "dpe_profile_p256_sha256")]
         let digest = Digest::Sha256(
-            Sha256::read_from_bytes(&self.digest)
+            crypto::Sha256::read_from_bytes(&self.digest)
                 .map_err(|_| DpeErrorCode::Crypto(crypto::CryptoError::Size))?,
         );
 
         #[cfg(feature = "dpe_profile_p384_sha384")]
         let digest = Digest::Sha384(
-            Sha384::read_from_bytes(&self.digest)
+            crypto::Sha384::read_from_bytes(&self.digest)
                 .map_err(|_| DpeErrorCode::Crypto(crypto::CryptoError::Size))?,
         );
 

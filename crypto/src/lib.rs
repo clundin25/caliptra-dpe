@@ -71,7 +71,7 @@ pub enum DigestAlgorithm {
 }
 
 impl DigestAlgorithm {
-    const fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         match self {
             DigestAlgorithm::Sha256 => 32,
             DigestAlgorithm::Sha384 => 48,
@@ -164,7 +164,7 @@ pub trait Hasher: Sized {
 
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 #[repr(C)]
-pub struct Sha256([u8; DigestAlgorithm::Sha256.size()]);
+pub struct Sha256(pub [u8; DigestAlgorithm::Sha256.size()]);
 
 impl DigestType for Sha256 {
     const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha256;
@@ -172,7 +172,7 @@ impl DigestType for Sha256 {
 
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 #[repr(C)]
-pub struct Sha384([u8; DigestAlgorithm::Sha256.size()]);
+pub struct Sha384(pub [u8; DigestAlgorithm::Sha256.size()]);
 
 impl DigestType for Sha384 {
     const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha384;
