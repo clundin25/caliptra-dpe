@@ -2376,7 +2376,7 @@ fn get_subject_key_identifier(
     }
 
     let hashed_pub_key = hasher.finish()?;
-    if hashed_pub_key.len() < MAX_KEY_IDENTIFIER_SIZE {
+    if hashed_pub_key.size() < MAX_KEY_IDENTIFIER_SIZE {
         return Err(DpeErrorCode::InternalError);
     }
     // truncate key identifier to 20 bytes
@@ -2521,7 +2521,7 @@ fn create_dpe_cert_or_csr(
                 &subject_name.serial.bytes()[..20], // Serial number must be truncated to 20 bytes
                 &issuer_name[..issuer_len],
                 &subject_name,
-                &exported_pub_key,
+                exported_pub_key,
                 &measurements,
                 &cert_validity,
             )?;
@@ -2590,6 +2590,7 @@ pub(crate) mod tests {
     use crate::tci::{TciMeasurement, TciNodeData};
     use crate::x509::{CertWriter, DirectoryString, MeasurementData, Name};
     use crate::{DpeProfile, DPE_PROFILE};
+    use crypto::ecdsa::curve_384::EcdsaSignature384;
     use crypto::ecdsa::{curve_256::EcdsaSignature256, EcdsaPub, EcdsaPubKey, EcdsaSignature};
     use openssl::hash::{Hasher, MessageDigest};
     use platform::{ArrayVec, CertValidity, OtherName, SubjectAltName, MAX_KEY_IDENTIFIER_SIZE};
@@ -2869,7 +2870,7 @@ pub(crate) mod tests {
                 &test_serial,
                 &issuer_der,
                 &test_subject_name,
-                &EcdsaPubKey::Ecdsa256(test_pub),
+                &EcdsaPubKey::Ecdsa384(test_pub),
                 &measurements,
                 &validity,
             )
@@ -2966,7 +2967,7 @@ pub(crate) mod tests {
                 TEST_SERIAL,
                 &issuer_der[..issuer_len],
                 &TEST_SUBJECT_NAME,
-                &EcdsaPubKey::Ecdsa256(test_pub),
+                &EcdsaPubKey::Ecdsa384(test_pub),
                 &measurements,
                 &validity,
             )
@@ -2984,11 +2985,11 @@ pub(crate) mod tests {
         let (tbs_written, _) = build_test_tbs(is_ca, &mut tbs_buf);
 
         let test_sig =
-            EcdsaSignature256::from_slice(&[0xCC; ECC_INT_SIZE], &[0xDD; ECC_INT_SIZE]).unwrap();
+            EcdsaSignature384::from_slice(&[0xCC; ECC_INT_SIZE], &[0xDD; ECC_INT_SIZE]).unwrap();
 
         let mut w = CertWriter::new(cert_buf, true);
         let bytes_written = w
-            .encode_ecdsa_certificate(&tbs_buf[..tbs_written], &EcdsaSignature::Ecdsa256(test_sig))
+            .encode_ecdsa_certificate(&tbs_buf[..tbs_written], &EcdsaSignature::Ecdsa384(test_sig))
             .unwrap();
 
         let mut parser = X509CertificateParser::new().with_deep_parse_extensions(true);

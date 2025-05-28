@@ -4,8 +4,6 @@
 compile_error!("must provide a crypto implementation");
 
 use clap::Parser;
-use crypto::ecdsa::curve_256::Curve256;
-use crypto::Ecdsa256RustCrypto;
 use dpe::dpe_instance::DpeInstanceFlags;
 use log::{error, info, trace, warn};
 use platform::default::{DefaultPlatform, DefaultPlatformProfile};
@@ -23,8 +21,11 @@ use dpe::{
     DpeInstance,
 };
 
-#[cfg(feature = "rustcrypto")]
-use crypto::RustCryptoImpl;
+#[cfg(feature = "dpe_profile_p256_sha256")]
+use crypto::Ecdsa256RustCrypto;
+
+#[cfg(feature = "dpe_profile_p384_sha384")]
+use crypto::Ecdsa384RustCrypto;
 
 const SOCKET_PATH: &str = "/tmp/dpe-sim.socket";
 

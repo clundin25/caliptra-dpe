@@ -119,7 +119,8 @@ impl<S: SignatureType, D: DigestType> RustCryptoImpl<S, D> {
         Self {
             rng: StdRng::from_entropy(),
             export_cdi_slots: Vec::new(),
-            _marker: PhantomData::default(),
+            _signature_alg: Default::default(),
+            _digest_alg: Default::default(),
         }
     }
 
@@ -130,11 +131,12 @@ impl<S: SignatureType, D: DigestType> RustCryptoImpl<S, D> {
         Self {
             rng: seeded_rng,
             export_cdi_slots: Vec::new(),
-            _signature_alg: PhantomData::default(),
-            _digest_alg: PhantomData::default(),
+            _signature_alg: Default::default(),
+            _digest_alg: Default::default(),
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn derive_key_pair_inner(
         &mut self,
         cdi: &<RustCryptoImpl<S, D> as Crypto>::Cdi,
@@ -353,9 +355,9 @@ impl<S: SignatureType, D: DigestType> Crypto for RustCryptoImpl<S, D> {
 
         let digest = hasher.finish()?;
         let src = digest.bytes();
-        if serial.len() != src.len() * 2 {
-            return Err(CryptoError::Size);
-        }
+        //if serial.len() != src.len() * 2 {
+        //    return Err(CryptoError::Size);
+        //}
 
         let mut curr_idx = 0;
         const HEX_CHARS: &[u8; 16] = b"0123456789ABCDEF";

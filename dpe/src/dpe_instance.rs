@@ -560,10 +560,15 @@ pub mod tests {
     use crate::support::test::SUPPORT;
     use crate::{commands::CommandHdr, CURRENT_PROFILE_MAJOR_VERSION};
     use caliptra_cfi_lib_git::CfiCounter;
-    use crypto::Ecdsa256RustCrypto;
     use crypto::{ecdsa::curve_256::Curve256, RustCryptoImpl};
     use platform::default::{DefaultPlatform, AUTO_INIT_LOCALITY};
     use zerocopy::IntoBytes;
+
+    #[cfg(feature = "dpe_profile_p256_sha256")]
+    use crypto::Ecdsa256RustCrypto;
+
+    #[cfg(feature = "dpe_profile_p384_sha384")]
+    use crypto::Ecdsa384RustCrypto;
 
     pub struct TestTypes;
     impl DpeTypes for TestTypes {

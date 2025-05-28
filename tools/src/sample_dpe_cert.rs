@@ -1,6 +1,5 @@
 // Licensed under the Apache-2.0 license
 
-use crypto::{ecdsa::curve_256::Curve256, Ecdsa256RustCrypto};
 use dpe::dpe_instance::DpeInstanceFlags;
 use platform::default::DefaultPlatformProfile;
 use std::env;
@@ -18,6 +17,12 @@ use {
     platform::default::DefaultPlatform,
     zerocopy::IntoBytes,
 };
+
+#[cfg(feature = "dpe_profile_p256_sha256")]
+use crypto::Ecdsa256RustCrypto;
+
+#[cfg(feature = "dpe_profile_p384_sha384")]
+use crypto::Ecdsa384RustCrypto;
 
 pub struct TestTypes {}
 

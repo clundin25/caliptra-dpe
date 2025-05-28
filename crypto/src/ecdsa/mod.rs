@@ -88,8 +88,8 @@ impl EcdsaPubKey {
 
     pub fn curve_size(&self) -> usize {
         match self {
-            Self::Ecdsa256(key) => curve_256::EcdsaPub256::curve_size(),
-            Self::Ecdsa384(key) => curve_384::EcdsaPub384::curve_size(),
+            Self::Ecdsa256(_) => curve_256::EcdsaPub256::curve_size(),
+            Self::Ecdsa384(_) => curve_384::EcdsaPub384::curve_size(),
         }
     }
 }

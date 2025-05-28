@@ -172,7 +172,7 @@ impl DigestType for Sha256 {
 
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 #[repr(C)]
-pub struct Sha384(pub [u8; DigestAlgorithm::Sha256.size()]);
+pub struct Sha384(pub [u8; DigestAlgorithm::Sha384.size()]);
 
 impl DigestType for Sha384 {
     const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha384;
@@ -181,10 +181,12 @@ impl DigestType for Sha384 {
 pub enum Digest {
     Sha256(Sha256),
     Sha384(Sha384),
+    // TODO(clundin): Add a variant for External Mu
+    //ExternalMu(),
 }
 
 impl Digest {
-    pub fn len(&self) -> usize {
+    pub fn size(&self) -> usize {
         match self {
             Digest::Sha256(dig) => dig.0.len(),
             Digest::Sha384(dig) => dig.0.len(),

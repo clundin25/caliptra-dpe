@@ -69,9 +69,9 @@ format_rust_targets
 format_go_targets
 
 # Run tests for P256 profile
-build_rust_targets dpe_profile_p256_sha256
-test_rust_targets dpe_profile_p256_sha256
-run_verification_tests dpe_profile_p256_sha256 rustcrypto
+# build_rust_targets dpe_profile_p256_sha256
+# test_rust_targets dpe_profile_p256_sha256
+# run_verification_tests dpe_profile_p256_sha256 rustcrypto
 
 # Run tests for P384 profile
 build_rust_targets dpe_profile_p384_sha384

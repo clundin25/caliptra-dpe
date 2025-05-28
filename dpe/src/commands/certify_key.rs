@@ -474,7 +474,7 @@ mod tests {
             .unwrap();
             env.crypto
                 .get_pubkey_serial(
-                    &ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa256(pub_key)),
+                    &ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa384(pub_key)),
                     &mut subj_serial,
                 )
                 .unwrap();
