@@ -8,6 +8,51 @@ use crate::{CryptoError, DigestAlgorithm, DigestType, SignatureAlgorithm, Signat
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 use zeroize::ZeroizeOnDrop;
 
+#[derive(Clone, FromBytes, IntoBytes, KnownLayout, Immutable, ZeroizeOnDrop)]
+#[repr(C)]
+pub struct EcdsaBuf<const K: usize> {
+    pub r: [u8; K],
+    pub s: [u8; K],
+}
+
+impl<const K: usize> EcdsaBuf<K> {
+    pub fn from_slice(r: &[u8; K], s: &[u8; K]) -> Result<Self, CryptoError> {
+        let mut key = Self::default();
+        key.r.clone_from_slice(r);
+        key.s.clone_from_slice(s);
+        Ok(key)
+    }
+
+    pub fn as_slice(&self) -> Result<(&[u8; K], &[u8; K]), CryptoError> {
+        Ok((&self.r, &self.s))
+    }
+
+    pub const fn curve_size(&self) -> usize {
+        K
+    }
+}
+
+impl<const K: usize> From<([u8; K], [u8; K])> for EcdsaBuf<K> {
+    fn from(value: ([u8; K], [u8; K])) -> Self {
+        Self {
+            r: value.0,
+            s: value.1,
+        }
+    }
+}
+
+impl<const K: usize> Default for EcdsaBuf<K> {
+    fn default() -> Self {
+        Self {
+            r: [0; K],
+            s: [0; K],
+        }
+    }
+}
+
+pub type EcdsaPub<const K: usize> = EcdsaBuf<K>;
+pub type EcdsaSig<const K: usize> = EcdsaBuf<K>;
+
 pub mod curve_256 {
 
     use super::*;
@@ -15,7 +60,7 @@ pub mod curve_256 {
     /// Marker type to statically check conversions.
     #[derive(Clone)]
     pub struct Curve256;
-    const CURVE_SIZE: usize = 256 / 8;
+    pub const CURVE_SIZE: usize = 256 / 8;
 
     pub type EcdsaPub256 = EcdsaPub<CURVE_SIZE>;
     pub type EcdsaSignature256 = EcdsaSig<CURVE_SIZE>;
@@ -36,7 +81,7 @@ pub mod curve_384 {
     /// Marker type to statically check conversions.
     #[derive(Clone)]
     pub struct Curve384;
-    const CURVE_SIZE: usize = 384 / 8;
+    pub const CURVE_SIZE: usize = 384 / 8;
 
     pub type EcdsaPub384 = EcdsaPub<CURVE_SIZE>;
     pub type EcdsaSignature384 = EcdsaSig<CURVE_SIZE>;
@@ -88,17 +133,10 @@ impl EcdsaPubKey {
 
     pub fn curve_size(&self) -> usize {
         match self {
-            Self::Ecdsa256(_) => curve_256::EcdsaPub256::curve_size(),
-            Self::Ecdsa384(_) => curve_384::EcdsaPub384::curve_size(),
+            Self::Ecdsa256(_) => curve_256::CURVE_SIZE,
+            Self::Ecdsa384(_) => curve_384::CURVE_SIZE,
         }
     }
-}
-
-#[derive(Clone, FromBytes, IntoBytes, KnownLayout, Immutable)]
-#[repr(C)]
-pub struct EcdsaSig<const K: usize> {
-    pub r: [u8; K],
-    pub s: [u8; K],
 }
 
 #[derive(Clone)]
@@ -126,74 +164,5 @@ impl EcdsaSignature {
             Self::Ecdsa256(key) => key.curve_size(),
             Self::Ecdsa384(key) => key.curve_size(),
         }
-    }
-}
-
-/// An ECDSA public key
-#[derive(Clone, FromBytes, IntoBytes, KnownLayout, Immutable, ZeroizeOnDrop)]
-#[repr(C)]
-pub struct EcdsaPub<const K: usize> {
-    x: [u8; K],
-    y: [u8; K],
-}
-
-impl<const K: usize> Default for EcdsaPub<K> {
-    fn default() -> Self {
-        Self {
-            x: [0; K],
-            y: [0; K],
-        }
-    }
-}
-
-impl<const K: usize> EcdsaPub<K> {
-    pub fn from_slice(x: &[u8; K], y: &[u8; K]) -> Result<Self, CryptoError> {
-        let mut key = Self::default();
-        key.x.clone_from_slice(x);
-        key.y.clone_from_slice(y);
-        Ok(key)
-    }
-
-    pub fn as_slice(&self) -> Result<(&[u8; K], &[u8; K]), CryptoError> {
-        Ok((&self.x, &self.y))
-    }
-
-    pub const fn curve_size() -> usize {
-        K
-    }
-}
-
-impl<const K: usize> From<([u8; K], [u8; K])> for EcdsaPub<K> {
-    fn from(value: ([u8; K], [u8; K])) -> Self {
-        Self {
-            x: value.0,
-            y: value.1,
-        }
-    }
-}
-
-impl<const K: usize> Default for EcdsaSig<K> {
-    fn default() -> Self {
-        Self {
-            r: [0; K],
-            s: [0; K],
-        }
-    }
-}
-
-impl<const K: usize> EcdsaSig<K> {
-    pub fn from_slice(r: &[u8; K], s: &[u8; K]) -> Result<Self, CryptoError> {
-        let mut key = Self::default();
-        key.r.clone_from_slice(r);
-        key.s.clone_from_slice(s);
-        Ok(key)
-    }
-
-    pub fn as_slice(&self) -> Result<(&[u8; K], &[u8; K]), CryptoError> {
-        Ok((&self.r, &self.s))
-    }
-
-    pub const fn curve_size(&self) -> usize {
-        K
     }
 }
