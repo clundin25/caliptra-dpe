@@ -23,6 +23,10 @@ mod hkdf;
 // TODO(clundin): Add an ECDSA feature flag.
 pub mod ecdsa;
 
+
+#[cfg(feature = "ml-dsa")]
+pub mod ml_dsa;
+
 pub const MAX_EXPORTED_CDI_SIZE: usize = 32;
 pub type ExportedCdiHandle = [u8; MAX_EXPORTED_CDI_SIZE];
 
@@ -42,27 +46,6 @@ pub trait DigestType {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-#[cfg(feature = "ml-dsa")]
-pub enum MldsaAlgorithm {
-    KL87,
-}
-
-#[cfg(all(test, feature = "ml-dsa"))]
-impl Default for MldsaAlgorithm {
-    fn default() -> Self {
-        Self::KL87
-    }
-}
-
-#[cfg(feature = "ml-dsa")]
-impl MldsaAlgorithm {
-    const fn xi_size(self) -> usize {
-        match self {
-            MldsaAlgorithm::KL87 => 32,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum DigestAlgorithm {
@@ -87,7 +70,7 @@ impl DigestAlgorithm {
 pub enum SignatureAlgorithm {
     Ecdsa(ecdsa::EcdsaAlgorithm),
     #[cfg(feature = "ml-dsa")]
-    MlDsa(MldsaAlgorithm),
+    MlDsa(ml_dsa::MldsaAlgorithm),
 }
 
 impl SignatureAlgorithm {
@@ -95,21 +78,21 @@ impl SignatureAlgorithm {
         match self {
             SignatureAlgorithm::Ecdsa(ec) => ec.curve_size() * 2,
             #[cfg(feature = "ml-dsa")]
-            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 4627,
+            SignatureAlgorithm::MlDsa(ml) => ml.signature_size(),
         }
     }
     pub const fn public_key_size(self) -> usize {
         match self {
             SignatureAlgorithm::Ecdsa(ec) => ec.curve_size(),
             #[cfg(feature = "ml-dsa")]
-            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 2592,
+            SignatureAlgorithm::MlDsa(ml) => ml.public_key_size(),
         }
     }
     pub const fn private_key_size(self) -> usize {
         match self {
             SignatureAlgorithm::Ecdsa(ec) => ec.curve_size(),
             #[cfg(feature = "ml-dsa")]
-            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => 4896,
+            SignatureAlgorithm::MlDsa(ml) => ml.private_key_size(),
         }
     }
 }
@@ -177,10 +160,6 @@ impl DigestType for Sha256 {
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 #[repr(C)]
 pub struct Sha384(pub [u8; DigestAlgorithm::Sha384.size()]);
-
-#[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
-#[repr(C)]
-pub struct ExternalMu(pub [u8; DigestAlgorithm::ExternalMu.size()]);
 
 impl DigestType for Sha384 {
     const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha384;

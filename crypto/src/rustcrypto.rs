@@ -22,6 +22,9 @@ use sha2::{digest::DynDigest, Sha256, Sha384};
 use std::boxed::Box;
 use zerocopy::FromBytes;
 
+#[cfg(feature = "ml-dsa")]
+use ml_dsa::{B32, MlDsa87, KeyGen};
+
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_derive_git::cfi_impl_fn;
 
@@ -30,6 +33,7 @@ use caliptra_cfi_derive_git::cfi_impl_fn;
 
 const RUSTCRYPTO_ECDSA_ERROR: CryptoError = CryptoError::CryptoLibError(1);
 const RUSTCRYPTO_SEC_ERROR: CryptoError = CryptoError::CryptoLibError(2);
+const RUSTCRYPTO_ML_DSA_SEED_ERROR: CryptoError = CryptoError::CryptoLibError(3);
 const RUSTCRYPTO_WRONG_ALG_ERROR: u32 = 3;
 
 impl From<ecdsa::Error> for CryptoError {
@@ -223,9 +227,9 @@ impl<S: SignatureType, D: DigestType> RustCryptoImpl<S, D> {
                     label,
                     info,
                 )?;
-                let signing = p384::ecdsa::SigningKey::from_slice(secret.as_slice())?;
-                let verifying = p384::ecdsa::VerifyingKey::from(&signing);
-                let point = verifying.to_encoded_point(false);
+                
+                let verifying = MlDsa87::key_gen_internal(secret.as_slice().try_into().map_err(|_| RUSTCRYPTO_ML_DSA_SEED_ERROR)?).verifying_key();
+                let encoded_key = verifying.encode();
 
                 let mut x = [0; EcdsaAlgorithm::Bit384.curve_size()];
                 let mut y = [0; EcdsaAlgorithm::Bit384.curve_size()];
