@@ -20,7 +20,7 @@ pub use rand::*;
 #[cfg(feature = "rustcrypto")]
 mod hkdf;
 
-// TODO(clundin): Put this behind a feature flag?
+// TODO(clundin): Add an ECDSA feature flag.
 pub mod ecdsa;
 
 pub const MAX_EXPORTED_CDI_SIZE: usize = 32;
@@ -68,13 +68,17 @@ impl MldsaAlgorithm {
 pub enum DigestAlgorithm {
     Sha256,
     Sha384,
+    #[cfg(feature = "ml-dsa")]
+    ExternalMu,
 }
 
 impl DigestAlgorithm {
     pub const fn size(&self) -> usize {
         match self {
-            DigestAlgorithm::Sha256 => 32,
-            DigestAlgorithm::Sha384 => 48,
+            Self::Sha256 => 32,
+            Self::Sha384 => 48,
+            #[cfg(feature = "ml-dsa")]
+            Self::ExternalMu => 64,
         }
     }
 }
@@ -174,6 +178,10 @@ impl DigestType for Sha256 {
 #[repr(C)]
 pub struct Sha384(pub [u8; DigestAlgorithm::Sha384.size()]);
 
+#[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
+#[repr(C)]
+pub struct ExternalMu(pub [u8; DigestAlgorithm::ExternalMu.size()]);
+
 impl DigestType for Sha384 {
     const DIGEST_ALGORITHM: DigestAlgorithm = DigestAlgorithm::Sha384;
 }
@@ -181,21 +189,23 @@ impl DigestType for Sha384 {
 pub enum Digest {
     Sha256(Sha256),
     Sha384(Sha384),
-    // TODO(clundin): Add a variant for External Mu
-    //ExternalMu(),
+    #[cfg(feature = "ml-dsa")]
+    ExternalMu(ExternalMu),
 }
 
 impl Digest {
     pub fn size(&self) -> usize {
         match self {
-            Digest::Sha256(dig) => dig.0.len(),
-            Digest::Sha384(dig) => dig.0.len(),
+            Self::Sha256(dig) => dig.0.len(),
+            Self::Sha384(dig) => dig.0.len(),
+            Self::ExternalMu(mu) => mu.0.len(),
         }
     }
     pub fn bytes(&self) -> &[u8] {
         match self {
-            Digest::Sha256(dig) => dig.0.as_slice(),
-            Digest::Sha384(dig) => dig.0.as_slice(),
+            Self::Sha256(dig) => dig.0.as_slice(),
+            Self::Sha384(dig) => dig.0.as_slice(),
+            Self::ExternalMu(mu) => mu.0.as_slice(),
         }
     }
 }

@@ -8,7 +8,8 @@ use crate::{
     },
     hkdf::*,
     Crypto, CryptoEngine, CryptoError, Digest, DigestAlgorithm, DigestType, ExportedCdiHandle,
-    ExportedPubKey, Hasher, SignatureAlgorithm, SignatureType, MAX_EXPORTED_CDI_SIZE,
+    ExportedPubKey, Hasher, MldsaAlgorithm, SignatureAlgorithm, SignatureType,
+    MAX_EXPORTED_CDI_SIZE,
 };
 use core::marker::PhantomData;
 use core::ops::Deref;
@@ -29,6 +30,7 @@ use caliptra_cfi_derive_git::cfi_impl_fn;
 
 const RUSTCRYPTO_ECDSA_ERROR: CryptoError = CryptoError::CryptoLibError(1);
 const RUSTCRYPTO_SEC_ERROR: CryptoError = CryptoError::CryptoLibError(2);
+const RUSTCRYPTO_WRONG_ALG_ERROR: u32 = 3;
 
 impl From<ecdsa::Error> for CryptoError {
     fn from(_value: ecdsa::Error) -> Self {
@@ -89,6 +91,10 @@ impl<D: DigestType> Hasher for RustCryptoHasher<D> {
                 let sha384 =
                     crate::Sha384::read_from_bytes(digest).map_err(|_| CryptoError::Size)?;
                 Digest::Sha384(sha384)
+            }
+            #[cfg(feature = "ml-dsa")]
+            DigestAlgorithm::ExternalMu => {
+                Err(CryptoError::CryptoLibError(RUSTCRYPTO_WRONG_ALG_ERROR))?
             }
         };
         Ok(digest)
@@ -167,9 +173,9 @@ impl<S: SignatureType, D: DigestType> RustCryptoImpl<S, D> {
         CryptoError,
     > {
         match S::SIGNATURE_ALGORITHM {
-            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
+            alg@SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
                 let secret = hkdf_get_priv_key(
-                    SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256),
+                    alg,
                     cdi,
                     label,
                     info,
@@ -188,9 +194,31 @@ impl<S: SignatureType, D: DigestType> RustCryptoImpl<S, D> {
                     ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa256(EcdsaPub256::from_slice(&x, &y)?)),
                 ))
             }
-            SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
+            alg@SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
                 let secret = hkdf_get_priv_key(
-                    SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384),
+                    alg,
+                    cdi,
+                    label,
+                    info,
+                )?;
+                let signing = p384::ecdsa::SigningKey::from_slice(secret.as_slice())?;
+                let verifying = p384::ecdsa::VerifyingKey::from(&signing);
+                let point = verifying.to_encoded_point(false);
+
+                let mut x = [0; EcdsaAlgorithm::Bit384.curve_size()];
+                let mut y = [0; EcdsaAlgorithm::Bit384.curve_size()];
+                x.clone_from_slice(point.x().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice());
+                y.clone_from_slice(point.y().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice());
+
+                Ok((
+                    RustCryptoPrivKey(secret),
+                    ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa384(EcdsaPub384::from_slice(&x, &y)?)),
+                ))
+            }
+            #[cfg(feature = "ml-dsa")]
+            alg@SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => {
+                let secret = hkdf_get_priv_key(
+                    alg,
                     cdi,
                     label,
                     info,
