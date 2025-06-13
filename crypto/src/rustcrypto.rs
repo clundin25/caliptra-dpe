@@ -8,22 +8,28 @@ use crate::{
     },
     hkdf::*,
     Crypto, CryptoEngine, CryptoError, Digest, DigestAlgorithm, DigestType, ExportedCdiHandle,
-    ExportedPubKey, Hasher, MldsaAlgorithm, SignatureAlgorithm, SignatureType,
-    MAX_EXPORTED_CDI_SIZE,
+    ExportedPubKey, Hasher, SignatureAlgorithm, SignatureType, MAX_EXPORTED_CDI_SIZE,
 };
+
+#[cfg(feature = "ml-dsa")]
+use {
+    crate::ml_dsa::{MldsaAlgorithm, MldsaPublicKey, MldsaSignature},
+    ml_dsa::{KeyGen, KeyPair, MlDsa87, signature::Signer},
+};
+
 use core::marker::PhantomData;
 use core::ops::Deref;
 use ecdsa::{signature::hazmat::PrehashSigner, Signature};
 use p256::NistP256;
 use p384::NistP384;
+use pkcs8::{
+    der::pem::LineEnding as Pkcs8LineEnding, DecodePrivateKey, EncodePrivateKey, EncodePublicKey,
+};
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 use sec1::DecodeEcPrivateKey;
 use sha2::{digest::DynDigest, Sha256, Sha384};
 use std::boxed::Box;
-use zerocopy::FromBytes;
-
-#[cfg(feature = "ml-dsa")]
-use ml_dsa::{B32, MlDsa87, KeyGen};
+use zerocopy::{FromBytes, SizeError, IntoBytes};
 
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_derive_git::cfi_impl_fn;
@@ -33,7 +39,7 @@ use caliptra_cfi_derive_git::cfi_impl_fn;
 
 const RUSTCRYPTO_ECDSA_ERROR: CryptoError = CryptoError::CryptoLibError(1);
 const RUSTCRYPTO_SEC_ERROR: CryptoError = CryptoError::CryptoLibError(2);
-const RUSTCRYPTO_ML_DSA_SEED_ERROR: CryptoError = CryptoError::CryptoLibError(3);
+const RUSTCRYPTO_ML_DSA_ERROR: CryptoError = CryptoError::CryptoLibError(3);
 const RUSTCRYPTO_WRONG_ALG_ERROR: u32 = 3;
 
 impl From<ecdsa::Error> for CryptoError {
@@ -45,6 +51,18 @@ impl From<ecdsa::Error> for CryptoError {
 impl From<sec1::Error> for CryptoError {
     fn from(_value: sec1::Error) -> Self {
         RUSTCRYPTO_SEC_ERROR
+    }
+}
+
+impl From<pkcs8::Error> for CryptoError {
+    fn from(_value: pkcs8::Error) -> Self {
+        RUSTCRYPTO_ML_DSA_ERROR
+    }
+}
+
+impl From<SizeError<&[u8], MldsaSignature>> for CryptoError {
+    fn from(_value: SizeError<&[u8], MldsaSignature>) -> Self {
+        RUSTCRYPTO_ML_DSA_ERROR
     }
 }
 
@@ -177,13 +195,8 @@ impl<S: SignatureType, D: DigestType> RustCryptoImpl<S, D> {
         CryptoError,
     > {
         match S::SIGNATURE_ALGORITHM {
-            alg@SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
-                let secret = hkdf_get_priv_key(
-                    alg,
-                    cdi,
-                    label,
-                    info,
-                )?;
+            alg @ SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => {
+                let secret = hkdf_get_priv_key(alg, cdi, label, info)?;
                 let signing = p256::ecdsa::SigningKey::from_slice(secret.as_slice())?;
                 let verifying = p256::ecdsa::VerifyingKey::from(&signing);
                 let point = verifying.to_encoded_point(false);
@@ -198,13 +211,8 @@ impl<S: SignatureType, D: DigestType> RustCryptoImpl<S, D> {
                     ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa256(EcdsaPub256::from_slice(&x, &y)?)),
                 ))
             }
-            alg@SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
-                let secret = hkdf_get_priv_key(
-                    alg,
-                    cdi,
-                    label,
-                    info,
-                )?;
+            alg @ SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => {
+                let secret = hkdf_get_priv_key(alg, cdi, label, info)?;
                 let signing = p384::ecdsa::SigningKey::from_slice(secret.as_slice())?;
                 let verifying = p384::ecdsa::VerifyingKey::from(&signing);
                 let point = verifying.to_encoded_point(false);
@@ -220,25 +228,24 @@ impl<S: SignatureType, D: DigestType> RustCryptoImpl<S, D> {
                 ))
             }
             #[cfg(feature = "ml-dsa")]
-            alg@SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => {
-                let secret = hkdf_get_priv_key(
-                    alg,
-                    cdi,
-                    label,
-                    info,
-                )?;
-                
-                let verifying = MlDsa87::key_gen_internal(secret.as_slice().try_into().map_err(|_| RUSTCRYPTO_ML_DSA_SEED_ERROR)?).verifying_key();
-                let encoded_key = verifying.encode();
-
-                let mut x = [0; EcdsaAlgorithm::Bit384.curve_size()];
-                let mut y = [0; EcdsaAlgorithm::Bit384.curve_size()];
-                x.clone_from_slice(point.x().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice());
-                y.clone_from_slice(point.y().ok_or(RUSTCRYPTO_ECDSA_ERROR)?.as_slice());
-
+            alg @ SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => {
+                let secret = hkdf_get_priv_key(alg, cdi, label, info)?;
+                let kp = MlDsa87::key_gen_internal(
+                    secret
+                        .as_slice()
+                        .try_into()
+                        .map_err(|_| RUSTCRYPTO_ML_DSA_ERROR)?,
+                );
+                let verifying = kp.verifying_key();
+                let encoded_key = verifying
+                    .to_public_key_der()
+                    .map_err(|_| RUSTCRYPTO_ML_DSA_ERROR)?;
                 Ok((
                     RustCryptoPrivKey(secret),
-                    ExportedPubKey::Ecdsa(EcdsaPubKey::Ecdsa384(EcdsaPub384::from_slice(&x, &y)?)),
+                    ExportedPubKey::MlDsa(
+                        MldsaPublicKey::read_from_bytes(encoded_key.as_bytes())
+                            .map_err(|_| RUSTCRYPTO_ML_DSA_ERROR)?,
+                    ),
                 ))
             }
         }
@@ -263,6 +270,11 @@ impl<S: SignatureType, D: DigestType> Crypto for RustCryptoImpl<S, D> {
                 _alg: Default::default(),
             },
             SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => RustCryptoHasher {
+                hasher: Box::new(Sha384::default()),
+                _alg: Default::default(),
+            },
+            #[cfg(feature = "ml-dsa")]
+            SignatureAlgorithm::MlDsa(_) => RustCryptoHasher {
                 hasher: Box::new(Sha384::default()),
                 _alg: Default::default(),
             },
@@ -355,6 +367,18 @@ impl<S: SignatureType, D: DigestType> Crypto for RustCryptoImpl<S, D> {
                     sig.try_into()?,
                 )))
             }
+            #[cfg(feature = "ml-dsa")]
+            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => {
+                let ml_dsa_secret = KeyPair::<MlDsa87>::from_pkcs8_pem(include_str!(concat!(
+                    env!("OUT_DIR"),
+                    "/alias_priv_mldsa_87.pem"
+                )))?;
+                let sig = ml_dsa_secret.signing_key().sign(digest.bytes());
+                let sig = sig.encode();
+                Ok(super::Signature::MlDsa(MldsaSignature::read_from_bytes(
+                    sig.as_slice()
+                )?))
+            }
         }
     }
 
@@ -381,11 +405,21 @@ impl<S: SignatureType, D: DigestType> Crypto for RustCryptoImpl<S, D> {
                     sig.try_into()?,
                 )))
             }
+            #[cfg(feature = "ml-dsa")]
+            SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => {
+                let ml_dsa_secret = MlDsa87::key_gen_internal(priv_key.0.as_slice().try_into().unwrap());
+                let sig = ml_dsa_secret.signing_key().sign(digest.bytes());
+                let sig = sig.encode();
+                Ok(super::Signature::MlDsa(MldsaSignature::read_from_bytes(
+                    sig.as_slice()
+                )?))
+            }
         }
     }
 
     fn get_pubkey_serial(
         &mut self,
+        //TODO: Maybe just use the internal public key to prevent mismatches?
         pub_key: &ExportedPubKey,
         serial: &mut [u8],
     ) -> Result<(), CryptoError> {
@@ -395,12 +429,24 @@ impl<S: SignatureType, D: DigestType> Crypto for RustCryptoImpl<S, D> {
         let mut hasher = self.hash_initialize()?;
         match S::SIGNATURE_ALGORITHM {
             SignatureAlgorithm::Ecdsa(_) => {
-                let ExportedPubKey::Ecdsa(pub_key) = pub_key;
+                let ExportedPubKey::Ecdsa(pub_key) = pub_key else {
+                    // TODO: Add confused algorithms error.
+                    panic!("Need to handle this");
+                };
                 let (x, y) = pub_key.as_slice()?;
 
                 hasher.update(&[0x4u8])?;
                 hasher.update(x)?;
                 hasher.update(y)?;
+            }
+            #[cfg(feature = "ml-dsa")]
+            SignatureAlgorithm::MlDsa(_) => {
+                let ExportedPubKey::MlDsa(pub_key) = pub_key else {
+                    // TODO: Add confused algorithms error.
+                    panic!("Need to handle this");
+                };
+                hasher.update(&[0x4u8])?;
+                hasher.update(pub_key.as_bytes())?;
             }
         }
 

@@ -23,7 +23,6 @@ mod hkdf;
 // TODO(clundin): Add an ECDSA feature flag.
 pub mod ecdsa;
 
-
 #[cfg(feature = "ml-dsa")]
 pub mod ml_dsa;
 
@@ -45,7 +44,6 @@ pub trait DigestType {
         Self::DIGEST_ALGORITHM
     }
 }
-
 
 #[derive(Debug, Clone, Copy)]
 pub enum DigestAlgorithm {
@@ -169,7 +167,7 @@ pub enum Digest {
     Sha256(Sha256),
     Sha384(Sha384),
     #[cfg(feature = "ml-dsa")]
-    ExternalMu(ExternalMu),
+    ExternalMu(ml_dsa::ExternalMu),
 }
 
 impl Digest {
@@ -177,6 +175,7 @@ impl Digest {
         match self {
             Self::Sha256(dig) => dig.0.len(),
             Self::Sha384(dig) => dig.0.len(),
+            #[cfg(feature = "ml-dsa")]
             Self::ExternalMu(mu) => mu.0.len(),
         }
     }
@@ -184,6 +183,7 @@ impl Digest {
         match self {
             Self::Sha256(dig) => dig.0.as_slice(),
             Self::Sha384(dig) => dig.0.as_slice(),
+            #[cfg(feature = "ml-dsa")]
             Self::ExternalMu(mu) => mu.0.as_slice(),
         }
     }
@@ -192,10 +192,14 @@ impl Digest {
 #[derive(Clone)]
 pub enum ExportedPubKey {
     Ecdsa(ecdsa::EcdsaPubKey),
+    #[cfg(feature = "ml-dsa")]
+    MlDsa(ml_dsa::MldsaPublicKey),
 }
 
 pub enum Signature {
     Ecdsa(EcdsaSignature),
+    #[cfg(feature = "ml-dsa")]
+    MlDsa(ml_dsa::MldsaSignature),
 }
 
 pub trait CryptoEngine: Crypto + SignatureType + DigestType {}

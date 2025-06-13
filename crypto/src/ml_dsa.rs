@@ -1,3 +1,4 @@
+use super::DigestAlgorithm;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[derive(Debug, Clone, Copy)]
@@ -13,7 +14,7 @@ impl Default for MldsaAlgorithm {
 }
 
 impl MldsaAlgorithm {
-    const fn xi_size(self) -> usize {
+    pub const fn seed_size(self) -> usize {
         match self {
             Self::KL87 => 32,
         }
@@ -38,3 +39,11 @@ impl MldsaAlgorithm {
 #[derive(FromBytes, IntoBytes, KnownLayout, Immutable)]
 #[repr(C)]
 pub struct ExternalMu(pub [u8; DigestAlgorithm::ExternalMu.size()]);
+
+#[derive(Clone, FromBytes, IntoBytes, KnownLayout, Immutable)]
+#[repr(C)]
+pub struct MldsaPublicKey(pub [u8; MldsaAlgorithm::KL87.public_key_size()]);
+
+#[derive(Clone, FromBytes, IntoBytes, KnownLayout, Immutable)]
+#[repr(C)]
+pub struct MldsaSignature(pub [u8; MldsaAlgorithm::KL87.signature_size()]);

@@ -5,7 +5,7 @@ use hkdf::Hkdf;
 use sha2::{Sha256, Sha384};
 
 #[cfg(feature = "ml-dsa")]
-use crate::MldsaAlgorithm;
+use crate::ml_dsa::MldsaAlgorithm;
 
 impl From<hkdf::InvalidLength> for CryptoError {
     fn from(_: hkdf::InvalidLength) -> Self {
@@ -36,10 +36,10 @@ pub fn hkdf_derive_cdi(
         #[cfg(feature = "ml-dsa")]
         SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => {
             // This block assumes that the size of `xi` is the same as `SHA256`.
-            const _: () = assert!(MldsaAlgorithm::KL87.xi_size() == 256 / 8);
+            const _: () = assert!(MldsaAlgorithm::KL87.seed_size() == 256 / 8);
 
             let hk = Hkdf::<Sha256>::new(Some(info), measurement.bytes());
-            let mut cdi = [0u8; MldsaAlgorithm::KL87.xi_size()];
+            let mut cdi = [0u8; MldsaAlgorithm::KL87.seed_size()];
             hk.expand(measurement.bytes(), &mut cdi)?;
 
             Ok(cdi.to_vec())
@@ -71,7 +71,7 @@ pub fn hkdf_get_priv_key(
         #[cfg(feature = "ml-dsa")]
         SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => {
             let hk = Hkdf::<Sha256>::new(Some(info), cdi);
-            let mut priv_key = [0u8; MldsaAlgorithm::KL87.xi_size()];
+            let mut priv_key = [0u8; MldsaAlgorithm::KL87.seed_size()];
             hk.expand(label, &mut priv_key)?;
 
             Ok(priv_key.into())
