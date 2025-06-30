@@ -41,7 +41,7 @@ cfg-if = "1.0.0"
 asn1 = "0.13.0"
 caliptra-cfi-lib-git = { workspace = true, features = ["cfi-test"] }
 x509-parser = "0.15.1"
-crypto = {path = "../crypto", features = ["deterministic_rand", "rustcrypto", "ml-dsa"]}
+crypto = {path = "../crypto", features = ["deterministic_rand", "rustcrypto"]}
 platform = {path = "../platform", default-features = false, features = ["rustcrypto"]}
 cms = "0.2.2"
 der = "0.7.8"
