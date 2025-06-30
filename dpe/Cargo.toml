@@ -9,8 +9,7 @@ edition = "2021"
 default = ["dpe_profile_p256_sha256", "no-cfi"]
 dpe_profile_p256_sha256 = []
 dpe_profile_p384_sha384 = []
-# TODO(clundin): Replace this with the profile name.
-ml-dsa = ["crypto/ml-dsa"]
+dpe_profile_mldsa87_external_mu_sha384 = ["crypto/ml-dsa"]
 # Run ARBITRARY_MAX_HANDLES=n cargo build --features arbitrary_max_handles to use this feature
 arbitrary_max_handles = []
 disable_simulation = []

@@ -131,7 +131,6 @@ impl CommandExecution for CertifyKeyCmd {
             _ => return Err(DpeErrorCode::InvalidArgument),
         }?;
 
-        // TODO(clundin): De-tangle public key from compile time profile?
         let (derived_pubkey_x, derived_pubkey_y) = match pub_key {
             ExportedPubKey::Ecdsa(pub_key) => {
                 let (x, y) = pub_key
@@ -148,6 +147,12 @@ impl CommandExecution for CertifyKeyCmd {
                     .try_into()
                     .map_err(|_| DpeErrorCode::InternalError)?;
                 (derived_pubkey_x, derived_pubkey_y)
+            }
+            #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
+            ExportedPubKey::MlDsa(_) => {
+                // TODO(clundin): We will need to change the shape of CertifyKey based on
+                // the profile.
+                Err(DpeErrorCode::InternalError)?
             }
         };
 
@@ -339,7 +344,7 @@ mod tests {
             let hash_alg_oid = match DPE_PROFILE.alg() {
                 SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => "2.16.840.1.101.3.4.2.1",
                 SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => "2.16.840.1.101.3.4.2.2",
-                #[cfg(feature = "ml-dsa")]
+                #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
                 SignatureAlgorithm::MlDsa(_) => {
                     panic!("TODO(clundin): Add Hash OID for ML-DSA87 profile (SHA-256)?")
                 }
@@ -371,7 +376,7 @@ mod tests {
             let sig_alg_oid = match DPE_PROFILE.alg() {
                 SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => "1.2.840.10045.4.3.2",
                 SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => "1.2.840.10045.4.3.3",
-                #[cfg(feature = "ml-dsa")]
+                #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
                 SignatureAlgorithm::MlDsa(_) => {
                     panic!("TODO(clundin): Add Signature OID for ML-DSA87 profile (ML-DSA87 OID)?")
                 }
@@ -425,7 +430,7 @@ mod tests {
             let curve = match DPE_PROFILE.alg() {
                 SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256) => Nid::X9_62_PRIME256V1,
                 SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => Nid::SECP384R1,
-                #[cfg(feature = "ml-dsa")]
+                #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
                 SignatureAlgorithm::MlDsa(_) => {
                     panic!("TODO(clundin): We should not check the curve when using ML-DSA");
                 }

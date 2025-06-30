@@ -657,6 +657,10 @@ impl CertWriter<'_> {
             ExportedPubKey::Ecdsa(pubkey) => {
                 Self::get_ecdsa_subject_pubkey_info_size(pubkey, /*tagged=*/ true)?
             }
+            #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
+            ExportedPubKey::MlDsa(_) => {
+                todo!("(clundin): Update this case")
+            }
         };
         let cert_req_info_size = Self::get_integer_size(Self::CSR_V0, true)?
             + Self::get_rdn_size(subject_name, /*tagged=*/ true)?

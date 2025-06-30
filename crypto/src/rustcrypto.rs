@@ -19,7 +19,7 @@ use {
         der::pem::LineEnding as Pkcs8LineEnding, DecodePrivateKey, EncodePrivateKey,
         EncodePublicKey,
     },
-    zerocopy::{FromBytes, IntoBytes, SizeError},
+    zerocopy::{IntoBytes, SizeError},
 };
 
 use core::marker::PhantomData;
@@ -38,6 +38,7 @@ use caliptra_cfi_derive_git::cfi_impl_fn;
 
 const RUSTCRYPTO_ECDSA_ERROR: CryptoError = CryptoError::CryptoLibError(1);
 const RUSTCRYPTO_SEC_ERROR: CryptoError = CryptoError::CryptoLibError(2);
+const RUSTCRYPTO_WRONG_ALG_ERROR: CryptoError = CryptoError::CryptoLibError(4);
 
 #[cfg(feature = "ml-dsa")]
 const RUSTCRYPTO_ML_DSA_ERROR: CryptoError = CryptoError::CryptoLibError(3);
@@ -118,7 +119,7 @@ impl<D: DigestType> Hasher for RustCryptoHasher<D> {
             }
             #[cfg(feature = "ml-dsa")]
             DigestAlgorithm::ExternalMu => {
-                Err(CryptoError::CryptoLibError(RUSTCRYPTO_WRONG_ALG_ERROR))?
+                Err(RUSTCRYPTO_WRONG_ALG_ERROR)?
             }
         };
         Ok(digest)
@@ -443,6 +444,9 @@ impl<S: SignatureType, D: DigestType> Crypto for RustCryptoImpl<S, D> {
                 hasher.update(&[0x4u8])?;
                 hasher.update(pub_key.as_bytes())?;
             }
+            // This can be reached when the "ml-dsa" feature is enabled.
+            #[allow(unreachable_patterns)]
+            _ => Err(RUSTCRYPTO_WRONG_ALG_ERROR)?,
         }
 
         let digest = hasher.finish()?;
