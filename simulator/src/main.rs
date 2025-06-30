@@ -23,6 +23,9 @@ use dpe::{
 #[cfg(feature = "dpe_profile_p256_sha256")]
 use crypto::Ecdsa256RustCrypto;
 
+#[cfg(feature = "dpe_profile_p384_sha384")]
+use crypto::Ecdsa384RustCrypto;
+
 const SOCKET_PATH: &str = "/tmp/dpe-sim.socket";
 
 fn handle_request(dpe: &mut DpeInstance, env: &mut DpeEnv<impl DpeTypes>, stream: &mut UnixStream) {
