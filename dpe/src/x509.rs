@@ -2557,7 +2557,10 @@ fn create_dpe_cert_or_csr(
                         return Err(DpeErrorCode::InternalError);
                     }
                     let tbs_digest = env.crypto.hash(&scratch_buf[..bytes_written])?;
-                    let Signature::Ecdsa(sig) = env.crypto.sign_with_alias(&tbs_digest)? else {
+                    #[allow(irrefutable_let_patterns)]
+                    // TODO(clundin): Remove when updating x509 code.
+                    let Signature::Ecdsa(sig) = env.crypto.sign_with_alias(&tbs_digest)?
+                    else {
                         Err(DpeErrorCode::InternalError)?
                     };
                     let mut cert_writer =
@@ -2583,6 +2586,8 @@ fn create_dpe_cert_or_csr(
             }
 
             let cert_req_info_digest = env.crypto.hash(&scratch_buf[..bytes_written])?;
+
+            #[allow(irrefutable_let_patterns)] // TODO(clundin): Remove when updating x509 code.
             // The PKCS#10 CSR is self-signed so the private key signs it instead of the alias key.
             let Signature::Ecdsa(cert_req_info_sig) =
                 env.crypto
@@ -2601,7 +2606,10 @@ fn create_dpe_cert_or_csr(
             }
 
             let csr_digest = env.crypto.hash(&csr_buffer[..bytes_written])?;
-            let Signature::Ecdsa(csr_sig) = env.crypto.sign_with_alias(&csr_digest)? else {
+            #[allow(irrefutable_let_patterns)] // TODO(clundin): Remove when updating x509 code.
+            // The PKCS#10 CSR is self-signed so the private key signs it instead of the alias key.
+            let Signature::Ecdsa(csr_sig) = env.crypto.sign_with_alias(&csr_digest)?
+            else {
                 todo!("(clundin): Address this when updating x509 code.")
             };
             let sid = env.platform.get_signer_identifier()?;
