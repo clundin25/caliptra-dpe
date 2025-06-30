@@ -15,10 +15,7 @@ use crate::{
 use {
     crate::ml_dsa::{MldsaAlgorithm, MldsaPublicKey, MldsaSignature},
     ml_dsa::{signature::Signer, KeyGen, KeyPair, MlDsa87},
-    pkcs8::{
-        der::pem::LineEnding as Pkcs8LineEnding, DecodePrivateKey, EncodePrivateKey,
-        EncodePublicKey,
-    },
+    pkcs8::{DecodePrivateKey, EncodePublicKey},
     zerocopy::{IntoBytes, SizeError},
 };
 
@@ -118,9 +115,7 @@ impl<D: DigestType> Hasher for RustCryptoHasher<D> {
                 Digest::Sha384(sha384)
             }
             #[cfg(feature = "ml-dsa")]
-            DigestAlgorithm::ExternalMu => {
-                Err(RUSTCRYPTO_WRONG_ALG_ERROR)?
-            }
+            DigestAlgorithm::ExternalMu => Err(RUSTCRYPTO_WRONG_ALG_ERROR)?,
         };
         Ok(digest)
     }

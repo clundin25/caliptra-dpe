@@ -209,6 +209,9 @@ mod tests {
     use x509_parser::prelude::*;
     use zerocopy::IntoBytes;
 
+    #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
+    use crypto::ml_dsa::MldsaAlgorithm;
+
     const TEST_CERTIFY_KEY_CMD: CertifyKeyCmd = CertifyKeyCmd {
         handle: SIMULATION_HANDLE,
         flags: CertifyKeyFlags(0x1234_5678),
@@ -425,6 +428,8 @@ mod tests {
                 SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384) => EcKey::private_key_from_der(
                     include_bytes!("../../../platform/src/test_data/key_384.der"),
                 ),
+                #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
+                SignatureAlgorithm::MlDsa(MldsaAlgorithm::KL87) => todo!("(clundin): Rust OpenSSL bindings does not yet support ML-DSA87 upstream. Come up with a solution either using rust crypto or a fork of the OpenSSL bindings."),
             }
             .unwrap();
             let curve = match DPE_PROFILE.alg() {

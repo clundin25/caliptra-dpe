@@ -2222,6 +2222,10 @@ impl CertWriter<'_> {
             ExportedPubKey::Ecdsa(pub_key) => {
                 bytes_written += self.encode_ecdsa_subject_pubkey_info(pub_key)?;
             }
+            #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
+            ExportedPubKey::MlDsa(_) => {
+                todo!("(clundin): Address this when updating x509 code.");
+            }
         }
 
         // attributes
@@ -2392,6 +2396,10 @@ fn get_subject_key_identifier(
             hasher.update(x)?;
             hasher.update(y)?;
         }
+        #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
+        ExportedPubKey::MlDsa(_) => {
+            todo!("(clundin): Address this when updating x509 code.");
+        }
     }
 
     let hashed_pub_key = hasher.finish()?;
@@ -2534,26 +2542,35 @@ fn create_dpe_cert_or_csr(
             if issuer_len > MAX_ISSUER_NAME_SIZE {
                 return Err(DpeErrorCode::InternalError);
             }
-            let ExportedPubKey::Ecdsa(ref exported_pub_key) = exported_pub_key;
-            let cert_validity = env.platform.get_cert_validity()?;
-            let mut bytes_written = scratch_writer.encode_ecdsa_tbs(
-                &subject_name.serial.bytes()[..20], // Serial number must be truncated to 20 bytes
-                &issuer_name[..issuer_len],
-                &subject_name,
-                exported_pub_key,
-                &measurements,
-                &cert_validity,
-            )?;
-            if bytes_written > MAX_CERT_SIZE {
-                return Err(DpeErrorCode::InternalError);
+            match exported_pub_key {
+                ExportedPubKey::Ecdsa(ref exported_pub_key) => {
+                    let cert_validity = env.platform.get_cert_validity()?;
+                    let mut bytes_written = scratch_writer.encode_ecdsa_tbs(
+                        &subject_name.serial.bytes()[..20], // Serial number must be truncated to 20 bytes
+                        &issuer_name[..issuer_len],
+                        &subject_name,
+                        exported_pub_key,
+                        &measurements,
+                        &cert_validity,
+                    )?;
+                    if bytes_written > MAX_CERT_SIZE {
+                        return Err(DpeErrorCode::InternalError);
+                    }
+                    let tbs_digest = env.crypto.hash(&scratch_buf[..bytes_written])?;
+                    let Signature::Ecdsa(sig) = env.crypto.sign_with_alias(&tbs_digest)? else {
+                        Err(DpeErrorCode::InternalError)?
+                    };
+                    let mut cert_writer =
+                        CertWriter::new(output_cert_or_csr, args.dice_extensions_are_critical);
+                    bytes_written = cert_writer
+                        .encode_ecdsa_certificate(&scratch_buf[..bytes_written], &sig)?;
+                    u32::try_from(bytes_written).map_err(|_| DpeErrorCode::InternalError)?
+                }
+                #[cfg(feature = "dpe_profile_mldsa87_external_mu_sha384")]
+                ExportedPubKey::MlDsa(_) => {
+                    todo!("(clundin): Address this when updating x509 code.");
+                }
             }
-            let tbs_digest = env.crypto.hash(&scratch_buf[..bytes_written])?;
-            let Signature::Ecdsa(sig) = env.crypto.sign_with_alias(&tbs_digest)?;
-            let mut cert_writer =
-                CertWriter::new(output_cert_or_csr, args.dice_extensions_are_critical);
-            bytes_written =
-                cert_writer.encode_ecdsa_certificate(&scratch_buf[..bytes_written], &sig)?;
-            u32::try_from(bytes_written).map_err(|_| DpeErrorCode::InternalError)?
         }
         CertificateFormat::Csr => {
             let mut bytes_written = scratch_writer.encode_certification_request_info(
@@ -2569,7 +2586,10 @@ fn create_dpe_cert_or_csr(
             // The PKCS#10 CSR is self-signed so the private key signs it instead of the alias key.
             let Signature::Ecdsa(cert_req_info_sig) =
                 env.crypto
-                    .sign_with_derived(&cert_req_info_digest, &priv_key, &pub_key)?;
+                    .sign_with_derived(&cert_req_info_digest, &priv_key, &pub_key)?
+            else {
+                todo!("(clundin): Address this when updating x509 code.")
+            };
 
             let mut csr_buffer = [0u8; MAX_CERT_SIZE];
             let mut csr_writer =
@@ -2581,7 +2601,9 @@ fn create_dpe_cert_or_csr(
             }
 
             let csr_digest = env.crypto.hash(&csr_buffer[..bytes_written])?;
-            let Signature::Ecdsa(csr_sig) = env.crypto.sign_with_alias(&csr_digest)?;
+            let Signature::Ecdsa(csr_sig) = env.crypto.sign_with_alias(&csr_digest)? else {
+                todo!("(clundin): Address this when updating x509 code.")
+            };
             let sid = env.platform.get_signer_identifier()?;
 
             let mut cms_writer =
