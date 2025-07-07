@@ -35,7 +35,7 @@ fn add_tcb_info(
     let cmd = DeriveContextCmd {
         handle: ContextHandle::default(),
         data: *data,
-        flags: DeriveContextFlags::INPUT_ALLOW_X509 | DeriveContextFlags::MAKE_DEFAULT,
+        flags: DeriveContextFlags::MAKE_DEFAULT,
         tci_type,
         target_locality: 0, // Unused since flag isn't set
         svn,
