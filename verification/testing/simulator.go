@@ -127,7 +127,7 @@ func GetSimulatorTargets() []TestTarget {
 		},
 		{
 			"TestDeriveContextCdiExport",
-			getTestTarget([]string{"AutoInit", "CdiExport", "DpeInstanceMarkDiceExtensionsCritical"}),
+			getTestTarget([]string{"AutoInit", "CdiExport", "DpeInstanceMarkDiceExtensionsCritical",  "RetainParentContext"}),
 			[]TestCase{TestDeriveContextCdiExportTestCase},
 		},
 		{
