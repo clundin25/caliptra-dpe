@@ -17,8 +17,9 @@ use caliptra_cfi_lib_git::cfi_launder;
 #[cfg(not(feature = "no-cfi"))]
 use caliptra_cfi_lib_git::{cfi_assert, cfi_assert_eq};
 use crypto::{
-    ecdsa::{EcdsaPubKey, EcdsaSignature},
-    Crypto, CryptoSuite, Digest, Hasher, PubKey, Signature, MAX_EXPORTED_CDI_SIZE,
+    ecdsa::{curve_256::EcdsaPub256, EcdsaPubKey, EcdsaSignature},
+    Crypto, CryptoError, CryptoSuite, Digest, Hasher, PubKey, Signature, SignatureType,
+    MAX_EXPORTED_CDI_SIZE,
 };
 #[cfg(not(feature = "disable_x509"))]
 use platform::CertValidity;
@@ -2330,6 +2331,16 @@ pub(crate) struct CreateDpeCertResult {
     pub exported_cdi_handle: [u8; MAX_EXPORTED_CDI_SIZE],
 }
 
+impl Default for CreateDpeCertResult {
+    fn default() -> Self {
+        Self {
+            cert_size: 0,
+            pub_key: PubKey::Ecdsa(EcdsaPubKey::Ecdsa256(EcdsaPub256::default())),
+            exported_cdi_handle: [0; MAX_EXPORTED_CDI_SIZE],
+        }
+    }
+}
+
 fn get_dpe_measurement_digest(
     dpe: &mut DpeInstance,
     env: &mut DpeEnv<impl DpeTypes>,
@@ -2404,7 +2415,8 @@ pub(crate) fn create_exported_dpe_cert(
     dpe: &mut DpeInstance,
     env: &mut DpeEnv<impl DpeTypes>,
     cert: &mut [u8],
-) -> Result<CreateDpeCertResult, DpeErrorCode> {
+    result: &mut CreateDpeCertResult,
+) -> Result<(), DpeErrorCode> {
     create_dpe_cert_or_csr(
         args,
         dpe,
@@ -2412,6 +2424,7 @@ pub(crate) fn create_exported_dpe_cert(
         CertificateFormat::X509,
         CertificateType::Exported,
         cert,
+        result,
     )
 }
 
@@ -2420,7 +2433,8 @@ pub(crate) fn create_dpe_cert(
     dpe: &mut DpeInstance,
     env: &mut DpeEnv<impl DpeTypes>,
     cert: &mut [u8],
-) -> Result<CreateDpeCertResult, DpeErrorCode> {
+    result: &mut CreateDpeCertResult,
+) -> Result<(), DpeErrorCode> {
     create_dpe_cert_or_csr(
         args,
         dpe,
@@ -2428,6 +2442,7 @@ pub(crate) fn create_dpe_cert(
         CertificateFormat::X509,
         CertificateType::Leaf,
         cert,
+        result,
     )
 }
 
@@ -2436,7 +2451,8 @@ pub(crate) fn create_dpe_csr(
     dpe: &mut DpeInstance,
     env: &mut DpeEnv<impl DpeTypes>,
     csr: &mut [u8],
-) -> Result<CreateDpeCertResult, DpeErrorCode> {
+    result: &mut CreateDpeCertResult,
+) -> Result<(), DpeErrorCode> {
     create_dpe_cert_or_csr(
         args,
         dpe,
@@ -2444,6 +2460,7 @@ pub(crate) fn create_dpe_csr(
         CertificateFormat::Csr,
         CertificateType::Leaf,
         csr,
+        result,
     )
 }
 
@@ -2454,7 +2471,8 @@ fn create_dpe_cert_or_csr(
     cert_format: CertificateFormat,
     cert_type: CertificateType,
     output_cert_or_csr: &mut [u8],
-) -> Result<CreateDpeCertResult, DpeErrorCode> {
+    result: &mut CreateDpeCertResult,
+) -> Result<(), DpeErrorCode> {
     let digest = get_dpe_measurement_digest(dpe, env, args.handle, args.locality)?;
 
     let mut exported_cdi_handle = None;
@@ -2610,11 +2628,13 @@ fn create_dpe_cert_or_csr(
         _ => [0; MAX_EXPORTED_CDI_SIZE],
     };
 
-    Ok(CreateDpeCertResult {
+    *result = CreateDpeCertResult {
         cert_size,
         pub_key,
         exported_cdi_handle,
-    })
+    };
+
+    Ok(())
 }
 
 #[cfg(test)]

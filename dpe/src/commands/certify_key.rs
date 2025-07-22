@@ -100,15 +100,15 @@ impl CommandExecution for CertifyKeyCmd {
         };
         let mut cert = [0; MAX_CERT_SIZE];
 
-        let CreateDpeCertResult {
-            cert_size, pub_key, ..
-        } = match self.format {
+        let mut result = CreateDpeCertResult::default();
+
+        match self.format {
             Self::FORMAT_X509 => {
                 cfg_if! {
                     if #[cfg(not(feature = "disable_x509"))] {
                         #[cfg(not(feature = "no-cfi"))]
                         cfi_assert_eq(self.format, Self::FORMAT_X509);
-                        create_dpe_cert(&args, dpe, env, &mut cert)
+                        create_dpe_cert(&args, dpe, env, &mut cert, &mut result)
                     } else {
                         Err(DpeErrorCode::ArgumentNotSupported)
                     }
@@ -119,7 +119,7 @@ impl CommandExecution for CertifyKeyCmd {
                     if #[cfg(not(feature = "disable_csr"))] {
                         #[cfg(not(feature = "no-cfi"))]
                         cfi_assert_eq(self.format, Self::FORMAT_CSR);
-                        create_dpe_csr(&args, dpe, env, &mut cert)
+                        create_dpe_csr(&args, dpe, env, &mut cert, &mut result)
                     } else {
                         Err(DpeErrorCode::ArgumentNotSupported)
                     }
@@ -127,6 +127,10 @@ impl CommandExecution for CertifyKeyCmd {
             }
             _ => return Err(DpeErrorCode::InvalidArgument),
         }?;
+
+        let CreateDpeCertResult {
+            cert_size, pub_key, ..
+        } = result;
 
         let (derived_pubkey_x, derived_pubkey_y) = match pub_key {
             PubKey::Ecdsa(pub_key) => {
