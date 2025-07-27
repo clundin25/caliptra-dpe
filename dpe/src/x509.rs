@@ -978,7 +978,6 @@ impl CertWriter<'_> {
     /// Encode a DirectoryString for an RDN. Multiple string types are allowed, so
     /// this function accepts a `tag`. This is important because some verifiers
     /// will do an exact DER comparison when building cert chains.
-    #[inline(never)]
     fn encode_rdn_string(&mut self, s: &DirectoryString) -> Result<usize, DpeErrorCode> {
         let (val, tag) = match s {
             DirectoryString::PrintableString(val) => (val, Self::PRINTABLE_STRING_TAG),
@@ -1009,7 +1008,6 @@ impl CertWriter<'_> {
     ///     printableString   PrintableString (SIZE (1..ub-common-name)),
     ///     ...
     ///     }
-    #[inline(never)]
     pub fn encode_rdn(&mut self, name: &Name) -> Result<usize, DpeErrorCode> {
         let cn_size =
             Self::get_structure_size(Self::RDN_COMMON_NAME_OID.len(), /*tagged=*/ true)?
@@ -1064,7 +1062,6 @@ impl CertWriter<'_> {
     ///       -- implicitCurve   NULL
     ///       -- specifiedCurve  SpecifiedECDomain
     ///     }
-    #[inline(never)]
     fn encode_ec_pub_alg_id(&mut self) -> Result<usize, DpeErrorCode> {
         let seq_size = Self::get_ec_pub_alg_id_size(/*tagged=*/ false)?;
 
@@ -1083,7 +1080,6 @@ impl CertWriter<'_> {
     ///     algorithm   OBJECT IDENTIFIER,
     ///     parameters  ECParameters
     ///     }
-    #[inline(never)]
     fn encode_ecdsa_sig_alg_id(&mut self) -> Result<usize, DpeErrorCode> {
         let seq_size = Self::get_ecdsa_sig_alg_id_size(/*tagged=*/ false)?;
 
@@ -1102,7 +1098,6 @@ impl CertWriter<'_> {
     ///     parameters  ECParameters
     ///     }
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_hash_alg_id(&mut self) -> Result<usize, DpeErrorCode> {
         let seq_size = Self::get_hash_alg_id_size(/*tagged=*/ false)?;
 
@@ -1115,7 +1110,6 @@ impl CertWriter<'_> {
 
     // Encode ASN.1 Validity according to Platform
     #[cfg(not(feature = "disable_x509"))]
-    #[inline(never)]
     fn encode_validity(&mut self, validity: &CertValidity) -> Result<usize, DpeErrorCode> {
         let seq_size = Self::get_validity_size(validity, /*tagged=*/ false)?;
 
@@ -1148,7 +1142,6 @@ impl CertWriter<'_> {
     /// directly, which means the OCTET STRING tag and size fields are omitted.
     ///
     /// Returns number of bytes written to `certificate`
-    #[inline(never)]
     fn encode_ecdsa_subject_pubkey_info(
         &mut self,
         pubkey: &EcdsaPub,
@@ -1181,7 +1174,6 @@ impl CertWriter<'_> {
     ///     r  INTEGER,
     ///     s  INTEGER
     ///   }
-    #[inline(never)]
     fn encode_ecdsa_signature_bit_string(&mut self, sig: &EcdsaSig) -> Result<usize, DpeErrorCode> {
         let seq_size = Self::get_integer_bytes_size(sig.r.bytes(), /*tagged=*/ true)?
             + Self::get_integer_bytes_size(sig.s.bytes(), /*tagged=*/ true)?;
@@ -1211,7 +1203,6 @@ impl CertWriter<'_> {
     ///     s  INTEGER
     ///   }
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_ecdsa_signature_octet_string(
         &mut self,
         sig: &EcdsaSig,
@@ -1233,7 +1224,6 @@ impl CertWriter<'_> {
         Ok(bytes_written)
     }
 
-    #[inline(never)]
     pub fn encode_version(&mut self) -> Result<usize, DpeErrorCode> {
         // Version is EXPLICIT field number 0
         let mut bytes_written = self.encode_byte(Self::CONTEXT_SPECIFIC | Self::CONSTRUCTED)?;
@@ -1246,7 +1236,6 @@ impl CertWriter<'_> {
         Ok(bytes_written)
     }
 
-    #[inline(never)]
     fn encode_fwid(&mut self, tci: &TciMeasurement) -> Result<usize, DpeErrorCode> {
         let mut bytes_written = self.encode_byte(Self::SEQUENCE_TAG)?;
         bytes_written +=
@@ -1277,7 +1266,6 @@ impl CertWriter<'_> {
     /// For constructed types (SEQUENCE, SEQUENCE OF, SET, SET OF) the 6th
     /// bit is also set. For example, "Implicit tag number 2" would be encoded
     /// with tag 0xA2 for constructed types.
-    #[inline(never)]
     fn encode_tcb_info(
         &mut self,
         node: &TciNodeData,
@@ -1343,7 +1331,6 @@ impl CertWriter<'_> {
     /// Encode a tcg-dice-MultiTcbInfo extension
     ///
     /// https://trustedcomputinggroup.org/wp-content/uploads/TCG_DICE_Attestation_Architecture_r22_02dec2020.pdf
-    #[inline(never)]
     fn encode_multi_tcb_info(
         &mut self,
         measurements: &MeasurementData,
@@ -1391,7 +1378,6 @@ impl CertWriter<'_> {
     /// Encode a tcg-dice-Ueid extension
     ///
     /// https://trustedcomputinggroup.org/wp-content/uploads/TCG_DICE_Attestation_Architecture_r22_02dec2020.pdf
-    #[inline(never)]
     fn encode_ueid(&mut self, measurements: &MeasurementData) -> Result<usize, DpeErrorCode> {
         let ueid_size = Self::get_ueid_size(measurements, /*tagged=*/ false)?;
 
@@ -1434,7 +1420,6 @@ impl CertWriter<'_> {
     /// Encode a BasicConstraints extension
     ///
     /// https://datatracker.ietf.org/doc/html/rfc5280
-    #[inline(never)]
     fn encode_basic_constraints(
         &mut self,
         measurements: &MeasurementData,
@@ -1479,7 +1464,6 @@ impl CertWriter<'_> {
     /// Encode a KeyUsage extension
     ///
     /// https://datatracker.ietf.org/doc/html/rfc5280
-    #[inline(never)]
     fn encode_key_usage(&mut self, is_ca: bool) -> Result<usize, DpeErrorCode> {
         let key_usage_size = Self::get_key_usage_size(/*tagged=*/ false)?;
 
@@ -1531,7 +1515,6 @@ impl CertWriter<'_> {
     /// is_ca = false: id-tcg-kp-attestLoc (2.23.133.8.9)
     ///
     /// https://datatracker.ietf.org/doc/html/rfc5280
-    #[inline(never)]
     fn encode_extended_key_usage(
         &mut self,
         measurements: &MeasurementData,
@@ -1575,7 +1558,6 @@ impl CertWriter<'_> {
     }
 
     #[allow(clippy::identity_op)]
-    #[inline(never)]
     fn encode_other_name_value(&mut self, other_name_value: &[u8]) -> Result<usize, DpeErrorCode> {
         // value is EXPLICIT field number 0
         let mut bytes_written =
@@ -1603,7 +1585,6 @@ impl CertWriter<'_> {
     ///    value      [0] EXPLICIT ANY DEFINED BY type-id
     /// }
     #[allow(clippy::identity_op)]
-    #[inline(never)]
     fn encode_other_name(&mut self, other_name: &OtherName) -> Result<usize, DpeErrorCode> {
         // otherName is EXPLICIT field number 0
         let mut bytes_written =
@@ -1635,7 +1616,6 @@ impl CertWriter<'_> {
     /// }
     ///
     /// Currently, only otherName is supported.
-    #[inline(never)]
     fn encode_subject_alt_name_extension(
         &mut self,
         measurements: &MeasurementData,
@@ -1680,7 +1660,6 @@ impl CertWriter<'_> {
     ///     authorityCertIssuer       [1] GeneralNames            OPTIONAL,
     ///     authorityCertSerialNumber [2] CertificateSerialNumber OPTIONAL
     /// }
-    #[inline(never)]
     fn encode_authority_key_identifier_extension(
         &mut self,
         measurements: &MeasurementData,
@@ -1727,7 +1706,6 @@ impl CertWriter<'_> {
         Ok(bytes_written)
     }
 
-    #[inline(never)]
     fn encode_subject_key_identifier_extension(
         &mut self,
         measurements: &MeasurementData,
@@ -1768,7 +1746,6 @@ impl CertWriter<'_> {
         Ok(bytes_written)
     }
 
-    #[inline(never)]
     fn encode_extensions(
         &mut self,
         measurements: &MeasurementData,
@@ -1811,7 +1788,6 @@ impl CertWriter<'_> {
     ///
     /// If the SignerIdentifier is IssuerAndSerialNumber the version is 1, otherwise it is 3.
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_cms_version(&mut self, sid: &SignerIdentifier) -> Result<usize, DpeErrorCode> {
         match sid {
             SignerIdentifier::IssuerAndSerialNumber {
@@ -1836,7 +1812,6 @@ impl CertWriter<'_> {
     /// }
     #[allow(clippy::identity_op)]
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_signed_data(
         &mut self,
         csr: &[u8],
@@ -1889,7 +1864,6 @@ impl CertWriter<'_> {
     /// AttributeValue ::= ANY -- Defined by attribute type
     #[allow(clippy::identity_op)]
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_attributes(&mut self, measurements: &MeasurementData) -> Result<usize, DpeErrorCode> {
         // Attributes is EXPLICIT field number 0
         let mut bytes_written =
@@ -1934,7 +1908,6 @@ impl CertWriter<'_> {
     ///    unsignedAttrs [1] IMPLICIT UnsignedAttributes OPTIONAL
     /// }
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     pub fn encode_signer_info(
         &mut self,
         sig: &EcdsaSig,
@@ -1971,7 +1944,6 @@ impl CertWriter<'_> {
     ///     subjectKeyIdentifier [0] SubjectKeyIdentifier
     /// }
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_signer_identifier(&mut self, sid: &SignerIdentifier) -> Result<usize, DpeErrorCode> {
         match sid {
             SignerIdentifier::IssuerAndSerialNumber {
@@ -1991,7 +1963,6 @@ impl CertWriter<'_> {
     ///    serialNumber CertificateSerialNumber
     /// }
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_issuer_and_serial_number(
         &mut self,
         serial_number: &[u8],
@@ -2021,7 +1992,6 @@ impl CertWriter<'_> {
     /// SubjectKeyIdentifier ::= OCTET STRING
     #[allow(clippy::identity_op)]
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_subject_key_identifier(
         &mut self,
         subject_key_identifier: &[u8],
@@ -2050,7 +2020,6 @@ impl CertWriter<'_> {
     ///
     /// KeyIdentifier ::= OCTET STRING
     #[allow(clippy::identity_op)]
-    #[inline(never)]
     fn encode_key_identifier(&mut self, key_identifier: &[u8]) -> Result<usize, DpeErrorCode> {
         // KeyIdentifier is IMPLICIT field number 0
         let mut bytes_written = self.encode_byte(Self::CONTEXT_SPECIFIC | 0x0)?;
@@ -2070,7 +2039,6 @@ impl CertWriter<'_> {
     /// eContent [0] EXPLICIT OCTET STRING OPTIONAL
     #[allow(clippy::identity_op)]
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_econtent(&mut self, bytes: &[u8]) -> Result<usize, DpeErrorCode> {
         // eContent is EXPLICIT field number 0
         let mut bytes_written =
@@ -2096,7 +2064,6 @@ impl CertWriter<'_> {
     ///    eContent [0] EXPLICIT OCTET STRING OPTIONAL
     /// }
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     fn encode_encapsulated_content_info(&mut self, csr: &[u8]) -> Result<usize, DpeErrorCode> {
         let encap_content_info_size =
             Self::get_encap_content_info_size(csr, /*tagged=*/ false)?;
@@ -2138,7 +2105,6 @@ impl CertWriter<'_> {
     /// * `measurements` - DPE measurement data.
     /// * `validity` - Time period in which certificate is valid.
     #[cfg(not(feature = "disable_x509"))]
-    #[inline(never)]
     pub fn encode_ecdsa_tbs(
         &mut self,
         serial_number: &[u8],
@@ -2198,7 +2164,6 @@ impl CertWriter<'_> {
     ///
     /// Returns number of bytes written to `certificate`
     #[cfg(not(feature = "disable_x509"))]
-    #[inline(never)]
     pub fn encode_ecdsa_certificate(
         &mut self,
         tbs: &[u8],
@@ -2241,7 +2206,6 @@ impl CertWriter<'_> {
     ///
     /// Returns number of bytes written to `certificate`
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     pub fn encode_certification_request_info(
         &mut self,
         pub_key: &EcdsaPub,
@@ -2284,7 +2248,6 @@ impl CertWriter<'_> {
     ///
     /// Returns number of bytes written to `certificate`
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     pub fn encode_csr(
         &mut self,
         cert_req_info: &[u8],
@@ -2317,7 +2280,6 @@ impl CertWriter<'_> {
     ///    content [0] EXPLICIT ANY DEFINED BY contentType
     /// }
     #[cfg(not(feature = "disable_csr"))]
-    #[inline(never)]
     pub fn encode_cms(
         &mut self,
         csr: &[u8],
