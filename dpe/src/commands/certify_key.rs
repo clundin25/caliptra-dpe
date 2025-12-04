@@ -430,6 +430,7 @@ mod tests {
     #[test]
     // TODO https://github.com/chipsalliance/caliptra-dpe/issues/450
     fn test_certify_key_csr() {
+        crate::tests::logger_init();
         // Verify that certify_key csr DICE extensions criticality matches the dpe_instance.
         for mark_dice_extensions_critical in [true, false] {
             CfiCounter::reset_for_test();
@@ -613,6 +614,10 @@ mod tests {
                     )
                     .expect("Error decoding ML-DSA private key");
 
+                    info!(
+                        "CSR signature length: {}",
+                        signer_info.signature.as_bytes().len()
+                    );
                     let csr_sig: ml_dsa::Signature<ml_dsa::MlDsa87> = ml_dsa::Signature::decode(
                         signer_info
                             .signature
