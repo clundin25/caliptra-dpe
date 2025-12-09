@@ -333,12 +333,16 @@ mod tests {
         Crypto, CryptoSuite, Digest, PubKey, SignatureAlgorithm,
     };
     use der::{Decode, Encode};
+    use ml_dsa::{EncodedSignature, Signature};
+    #[cfg(feature = "ml-dsa")]
+    use ml_dsa::{KeyPair, MlDsa87};
     use openssl::{
         bn::BigNum,
         ec::{EcGroup, EcKey},
         ecdsa::EcdsaSig,
         nid::*,
     };
+    use pkcs8::{der::pem::LineEnding as Pkcs8LineEnding, DecodePrivateKey, EncodePrivateKey};
     use platform::Platform;
     use spki::ObjectIdentifier;
     use std::str;
@@ -608,9 +612,8 @@ mod tests {
                 #[cfg(feature = "ml-dsa")]
                 SignatureAlgorithm::MlDsa(MldsaAlgorithm::ExternalMu87) => {
                     // TODO Replace RustCrypto with OpenSSL
-                    use pkcs8::DecodePrivateKey;
-                    let key: ml_dsa::KeyPair<ml_dsa::MlDsa87> = ml_dsa::KeyPair::from_pkcs8_der(
-                        include_bytes!("../../../platform/src/test_data/key_mldsa_87.der"),
+                    let key: ml_dsa::KeyPair<ml_dsa::MlDsa87> = KeyPair::<MlDsa87>::from_pkcs8_pem(
+                        &include_str!("../../../platform/src/test_data/key_mldsa_87.pem"),
                     )
                     .expect("Error decoding ML-DSA private key");
 
@@ -618,14 +621,15 @@ mod tests {
                         "CSR signature length: {}",
                         signer_info.signature.as_bytes().len()
                     );
-                    let csr_sig: ml_dsa::Signature<ml_dsa::MlDsa87> = ml_dsa::Signature::decode(
-                        signer_info
-                            .signature
-                            .as_bytes()
-                            .try_into()
-                            .expect("Error creating encoded signature from bytes"),
-                    )
-                    .expect("Error decoding signature");
+
+                    // let octet_string =
+                    //     der::asn1::OctetStringRef::from_der(signer_info.signature.as_bytes())
+                    //         .unwrap();
+                    let raw_bytes = signer_info.signature.as_bytes();
+                    let sig_bytes =
+                        EncodedSignature::<MlDsa87>::try_from(raw_bytes)
+                            .unwrap();
+                    let sig = Signature::<MlDsa87>::decode(&sig_bytes);
                     todo!()
                 }
             }
