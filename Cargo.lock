@@ -225,12 +225,14 @@ source = "git+https://github.com/chipsalliance/caliptra-cfi.git?rev=aa96c53073ce
 name = "caliptra-dpe"
 version = "0.1.0"
 dependencies = [
+ "arrayvec",
  "asn1",
  "bitflags",
  "caliptra-cfi-derive",
  "caliptra-cfi-lib",
  "caliptra-dpe-crypto",
  "caliptra-dpe-platform",
+ "caliptra-dpe-types",
  "cfg-if",
  "cms",
  "const-oid 0.10.2",
@@ -313,6 +315,16 @@ dependencies = [
  "clap",
  "pem",
  "zerocopy",
+]
+
+[[package]]
+name = "caliptra-dpe-types"
+version = "0.1.0"
+dependencies = [
+ "caliptra-dpe-crypto",
+ "caliptra-dpe-platform",
+ "zerocopy",
+ "zeroize",
 ]
 
 [[package]]

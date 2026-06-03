@@ -11,9 +11,9 @@ version.workspace = true
 [features]
 default = ["p384", "cfi"]
 hybrid = ["p384", "ml-dsa"]
-ml-dsa = ["caliptra-dpe-crypto/ml-dsa"]
-p256 = []
-p384 = []
+ml-dsa = ["caliptra-dpe-crypto/ml-dsa", "caliptra-dpe-types/ml-dsa"]
+p256 = ["caliptra-dpe-types/p256"]
+p384 = ["caliptra-dpe-types/p384"]
 # Run ARBITRARY_MAX_HANDLES=n cargo build --features arbitrary_max_handles to use this feature
 arbitrary_max_handles = []
 cfi = [
@@ -39,12 +39,24 @@ caliptra-cfi-derive.workspace = true
 caliptra-cfi-lib = { workspace = true, default-features = false }
 caliptra-dpe-crypto = { workspace = true, default-features = false }
 caliptra-dpe-platform = { workspace = true, default-features = false }
+caliptra-dpe-types = { workspace = true }
 cfg-if.workspace = true
 constant_time_eq.workspace = true
 log = { version = "0.4.28", optional = true }
 ufmt.workspace = true
 zerocopy.workspace = true
 zeroize.workspace = true
+
+[build-dependencies]
+arrayvec = { workspace = true }
+bitflags = "2.4.0"
+caliptra-cfi-lib = { workspace = true, default-features = false }
+caliptra-dpe-crypto = { workspace = true, default-features = false, features = [
+  "ml-dsa",
+] }
+caliptra-dpe-platform = { workspace = true, default-features = false }
+caliptra-dpe-types = { workspace = true, features = ["ml-dsa"] }
+zerocopy = { workspace = true }
 
 [dev-dependencies]
 asn1 = "0.13.0"

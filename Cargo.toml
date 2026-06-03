@@ -11,6 +11,7 @@ members = [
   "tools",
   "xtask",
   "test-artifacts",
+  "types",
 ]
 
 [workspace.package]
@@ -31,6 +32,7 @@ caliptra-dpe = { path = "dpe", default-features = false }
 caliptra-dpe-crypto = { path = "crypto", default-features = false }
 caliptra-dpe-platform = { path = "platform", default-features = false }
 caliptra-dpe-test-artifacts = { path = "test-artifacts" }
+caliptra-dpe-types = { path = "types", default-features = false }
 cfg-if = "1.0.0"
 clap = { version = "4.3", features = ["derive"] }
 constant_time_eq = "0.3.0"

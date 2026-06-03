@@ -8,45 +8,7 @@ use crate::{
     State, MAX_HANDLES,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[repr(u16)]
-/// It is possible that there are multiple issues with the DPE state. At most one will be found.
-/// There is no priority on which error will be found first if there are multiple.
-pub enum ValidationError {
-    MultipleNormalConnectedComponents = 0x0,
-    CyclesInTree = 0x1,
-    InactiveContextInvalidParent = 0x2,
-    InactiveContextWithChildren = 0x3,
-    BadContextState = 0x4,
-    BadContextType = 0x5,
-    InactiveContextWithMeasurement = 0x6,
-    MixedContextLocality = 0x7,
-    MultipleDefaultContexts = 0x8,
-    SimulationNotSupported = 0x9,
-    ParentDoesNotExist = 0xA,
-    InternalDiceNotSupported = 0xB,
-    InternalInfoNotSupported = 0xC,
-    ChildDoesNotExist = 0xD,
-    InactiveContextWithFlagSet = 0xE,
-    LocalityMismatch = 0xF,
-    DanglingRetiredContext = 0x10,
-    MixedContextTypeConnectedComponents = 0x11,
-    ChildWithMultipleParents = 0x12,
-    ParentChildLinksCorrupted = 0x13,
-    AllowCaNotSupported = 0x14,
-    AllowX509NotSupported = 0x15,
-    InactiveParent = 0x16,
-    InactiveChild = 0x17,
-    DpeNotMarkedInitialized = 0x18,
-    InvalidMarker = 0x19,
-    VersionMismatch = 0x1A,
-}
-
-impl ValidationError {
-    pub fn discriminant(&self) -> u16 {
-        *self as u16
-    }
-}
+pub use caliptra_dpe_types::ValidationError;
 
 pub struct DpeValidator<'a> {
     pub dpe: &'a mut State,

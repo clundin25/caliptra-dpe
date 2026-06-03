@@ -83,68 +83,7 @@ impl From<bool> for U8Bool {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, IntoBytes, TryFromBytes, KnownLayout, Immutable, Zeroize,
-)]
-#[repr(u32)]
-pub enum DpeProfile {
-    // Note: Min profiles (1 & 2) are not supported by this implementation
-    P256Sha256 = 3,
-    P384Sha384 = 4,
-    #[cfg(feature = "ml-dsa")]
-    Mldsa87 = 5, // TODO(clundin): Added this to get past compiler / feature flags. We
-                 // will want a real solution here.
-}
-
-impl DpeProfile {
-    pub const fn tci_size(&self) -> usize {
-        match self {
-            DpeProfile::P256Sha256 => 32,
-            DpeProfile::P384Sha384 => 48,
-            #[cfg(feature = "ml-dsa")]
-            DpeProfile::Mldsa87 => 48,
-        }
-    }
-    pub const fn ecc_int_size(&self) -> usize {
-        self.tci_size()
-    }
-    pub const fn hash_size(&self) -> usize {
-        self.tci_size()
-    }
-    pub const fn alg(&self) -> caliptra_dpe_crypto::SignatureAlgorithm {
-        match self {
-            DpeProfile::P256Sha256 => {
-                caliptra_dpe_crypto::SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit256)
-            }
-            DpeProfile::P384Sha384 => {
-                caliptra_dpe_crypto::SignatureAlgorithm::Ecdsa(EcdsaAlgorithm::Bit384)
-            }
-            #[cfg(feature = "ml-dsa")]
-            DpeProfile::Mldsa87 => caliptra_dpe_crypto::SignatureAlgorithm::Mldsa(
-                caliptra_dpe_crypto::ml_dsa::MldsaAlgorithm::Mldsa87,
-            ),
-        }
-    }
-    pub fn key_context(&self) -> &[u8] {
-        match self {
-            DpeProfile::P256Sha256 | DpeProfile::P384Sha384 => b"ECC",
-            #[cfg(feature = "ml-dsa")]
-            DpeProfile::Mldsa87 => b"MLDSA",
-        }
-    }
-}
-
-impl From<DpeProfile> for u32 {
-    fn from(item: DpeProfile) -> Self {
-        item as u32
-    }
-}
-
-#[cfg(feature = "p256")]
-pub const TCI_SIZE: usize = 32;
-
-#[cfg(any(feature = "p384", feature = "ml-dsa"))]
-pub const TCI_SIZE: usize = 48;
+pub use caliptra_dpe_types::{DpeProfile, TCI_SIZE};
 
 // Recursive macro that does a union of all the flags passed to it. This is
 // const and looks about as nice as using the | operator.
