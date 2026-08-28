@@ -36,7 +36,9 @@ Available commands:
 * `cargo xtask precheckin`: Run formatting, linters, and license header checks.
     * `cargo xtask precheckin headers`: Check license headers.
     * `cargo xtask precheckin format`: Check code formatting.
-    * `cargo xtask precheckin lint`: Run linters.
+* `cargo xtask doc`: Build the mdBook documentation (`docs/book/`).
+    * `cargo xtask doc --serve`: Build and serve the mdBook documentation locally with hot reload (http://localhost:3000).
+    * `cargo xtask doc --serve --port 8080`: Host documentation on a custom port.
 * `cargo xtask cert-graph`: Build the DPE certificate/CSR visualizer WebAssembly app and JS bindings.
     * `cargo xtask cert-graph --serve`: Build and start the local HTTP server (http://localhost:8080).
 * `cargo xtask cert-graph --serve --port 9090`: Host on a custom port.
@@ -46,3 +48,16 @@ Available commands:
 * `cargo xtask run-tool`: Run a tool from the `tools/` folder.
     * `cargo xtask run-tool sample-dpe-cert`: Run `sample_dpe_cert`.
     * `cargo xtask run-tool cert-size`: Run `cert-size`.
+
+## Documentation
+
+Comprehensive mdBook documentation is available in the [`docs/`](docs/) directory.
+
+To build and view the documentation locally:
+
+```bash
+cargo xtask doc --serve
+```
+
+Then open `http://localhost:3000` in your web browser.
+

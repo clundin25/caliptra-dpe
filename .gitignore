@@ -1,5 +1,6 @@
 target
 tools/pkg/
+docs/book/
 
 # By default, ignore Cargo.lock files in non-workspace directories.
 */**/Cargo.lock

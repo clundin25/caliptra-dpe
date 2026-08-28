@@ -32,6 +32,7 @@
             taplo
             cargo-nextest
             wasm-bindgen-cli
+            mdbook
           ];
           shellHook = ''
             # Ensure the toolchains are installed
