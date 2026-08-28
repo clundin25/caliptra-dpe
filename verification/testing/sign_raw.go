@@ -125,7 +125,7 @@ func TestSignRawConsistencyWithNormalMu(d client.TestDPEInstance, c client.DPECl
 	}
 
 	if err := mldsa.Verify(pk, testMessage, normalSignResp.Signature, nil); err != nil {
-		t.Errorf("ML-DSA Signature Verification failed for Sign: %v", err)
+		t.Errorf("ML-DSA Signature Verification failed for Sign with external mu: %v", err)
 	}
 
 	if !bytes.Equal(rawSignResp.Signature, normalSignResp.Signature) {
