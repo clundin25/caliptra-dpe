@@ -15,4 +15,7 @@ Triggered on pull requests and pushes to `main`:
 Triggered on pushes to `main`:
 - Builds the WebAssembly Certificate Visualizer (`cargo xtask cert-graph`).
 - Builds the mdBook documentation (`cargo xtask doc`).
-- Deploys the static site to GitHub Pages (`dist/`).
+- Deploys the combined static site to GitHub Pages (`dist/`):
+  - **mdBook Documentation Root**: `https://chipsalliance.github.io/caliptra-dpe/`
+  - **Certificate Visualizer**: `https://chipsalliance.github.io/caliptra-dpe/cert-printer/`
+

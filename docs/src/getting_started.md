@@ -68,7 +68,7 @@ cargo xtask ci
 
 ## Viewing and Building Documentation
 
-The documentation is built with [mdBook](https://rust-lang.github.io/mdBook/):
+The documentation is built with [mdBook](https://rust-lang.github.io/mdBook/) and published online at **https://chipsalliance.github.io/caliptra-dpe/**:
 
 ```bash
 # Build the documentation into docs/book/
@@ -81,6 +81,7 @@ cargo xtask doc --serve --port 8080
 ```
 
 Once served, open `http://localhost:3000` (or your custom port) in your web browser.
+
 
 ---
 

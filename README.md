@@ -51,7 +51,7 @@ Available commands:
 
 ## Documentation
 
-Comprehensive mdBook documentation is available in the [`docs/`](docs/) directory.
+Comprehensive mdBook documentation is available in the [`docs/`](docs/) directory and published online at **https://chipsalliance.github.io/caliptra-dpe/** (with the interactive certificate visualizer hosted at **https://chipsalliance.github.io/caliptra-dpe/cert-printer/**).
 
 To build and view the documentation locally:
 
@@ -60,4 +60,5 @@ cargo xtask doc --serve
 ```
 
 Then open `http://localhost:3000` in your web browser.
+
 
