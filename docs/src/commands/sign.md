@@ -26,7 +26,7 @@ pub struct SignCmd {
 ### Flags
 | Flag Bit | Name | Description |
 |---|---|---|
-| `Bit 0` | `IsSymmetric` | Reserved for future symmetric HMAC signing operations. |
+| `Bit 0` | `IsRaw` | For ML-DSA, perform raw message signing instead of signing a pre-hashed digest. |
 
 ---
 

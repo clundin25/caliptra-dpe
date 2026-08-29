@@ -49,7 +49,7 @@ Universal Entity ID encoding unique device serial numbers and RoT identifiers.
 
 ## CSR Generation (PKCS#10)
 
-Clients can invoke `CertifyKey` with the `AddIsCsr` flag to produce a Certificate Signing Request instead of a self-signed or intermediate certificate. The CSR contains:
+Clients can invoke `CertifyKey` with `format` set to `FORMAT_CSR` (`1`) to produce a Certificate Signing Request instead of a self-signed or intermediate certificate. The CSR contains:
 - Certification Request Info (CRI) with Subject and Subject Public Key Info.
 - Requested Attributes containing `MultiTcbInfo` extension requests.
 - Digital signature generated using the context's private key.

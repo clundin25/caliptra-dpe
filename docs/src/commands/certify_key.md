@@ -18,14 +18,16 @@ The `CertifyKey` command derives an asymmetric key pair for the target context a
 pub struct CertifyKeyCmd {
     pub handle: ContextHandle,
     pub flags: CertifyKeyFlags,
+    pub format: u32,
     pub label: [u8; DPE_LABEL_SIZE],
 }
 ```
 
-### Flags
-| Flag Bit | Name | Description |
+### Formats
+| Format | Value | Description |
 |---|---|---|
-| `Bit 0` | `AddIsCsr` | Produce a PKCS#10 Certificate Signing Request (CSR) instead of an X.509 certificate. |
+| `FORMAT_X509` | `0` | Produce an X.509 certificate. |
+| `FORMAT_CSR` | `1` | Produce a PKCS#10 Certificate Signing Request (CSR). |
 
 ---
 
