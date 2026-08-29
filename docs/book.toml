@@ -4,7 +4,6 @@
 authors = ["Caliptra DPE Project"]
 description = "Documentation for Caliptra DICE Protection Environment (DPE) firmware, simulator, crypto drivers, and verification suite"
 language = "en"
-multilingual = false
 src = "src"
 title = "Caliptra DPE Documentation"
 
