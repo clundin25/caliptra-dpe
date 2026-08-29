@@ -1,6 +1,6 @@
 # Contexts and Handles
 
-In Caliptra DPE, a **Context** represents an isolated cryptographic principal and its associated measurement history. Contexts are arranged into trees (a forest) where child contexts inherit and extend the measurement history of their parents.
+In Caliptra DPE, a **Context** represents an identity and its measurement history. Contexts are organized into trees where child contexts inherit and extend their parent's measurements.
 
 ---
 
