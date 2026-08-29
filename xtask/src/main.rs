@@ -37,6 +37,8 @@ enum Commands {
     RunTool(RunToolArgs),
     /// Build and host the DPE Certificate Visualizer WASM web app
     CertGraph(CertGraphArgs),
+    /// Build or serve mdBook documentation
+    Doc(DocArgs),
     /// Regenerate the golden X.509 certificates and CSRs
     RegenX509Testdata(x509_testdata::Args),
 }
@@ -121,6 +123,17 @@ pub struct CertGraphArgs {
 }
 
 #[derive(Parser)]
+pub struct DocArgs {
+    /// Port to host mdBook documentation server (default: 3000)
+    #[arg(short = 'p', long, default_value_t = 3000)]
+    pub port: u16,
+
+    /// Start local HTTP server with hot reloading
+    #[arg(short = 's', long, default_value_t = false)]
+    pub serve: bool,
+}
+
+#[derive(Parser)]
 pub struct MiriArgs {
     #[arg(long, default_value_t = false)]
     nextest: bool,
@@ -138,6 +151,7 @@ fn main() -> Result<()> {
         Commands::Precheckin(args) => run_precheckin_command(args)?,
         Commands::RunTool(args) => run_tool_command(args)?,
         Commands::CertGraph(args) => run_cert_graph(args)?,
+        Commands::Doc(args) => run_doc(args)?,
         Commands::RegenX509Testdata(args) => x509_testdata::run(args)?,
     }
 
@@ -170,6 +184,25 @@ fn run_ci() -> Result<()> {
         serve: false,
     })?;
 
+    // Build documentation to ensure mdBook builds cleanly
+    run_doc(&DocArgs {
+        port: 3000,
+        serve: false,
+    })?;
+
+    Ok(())
+}
+
+fn run_doc(args: &DocArgs) -> Result<()> {
+    if args.serve {
+        println!("Serving mdBook documentation on port {}...", args.port);
+        Cmd::new("mdbook")
+            .args(["serve", "docs", "--port", &args.port.to_string()])
+            .run()?;
+    } else {
+        println!("Building mdBook documentation...");
+        Cmd::new("mdbook").args(["build", "docs"]).run()?;
+    }
     Ok(())
 }
 

@@ -1,0 +1,31 @@
+# Licensed under the Apache-2.0 license
+
+[book]
+authors = ["Caliptra DPE Project"]
+description = "Documentation for Caliptra DICE Protection Environment (DPE) firmware, simulator, crypto drivers, and verification suite"
+language = "en"
+src = "src"
+title = "Caliptra DPE Documentation"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+additional-css = []
+additional-js = []
+default-theme = "light"
+edit-url-template = "https://github.com/chipsalliance/caliptra-dpe/edit/main/docs/{path}"
+git-repository-icon = "fa-github"
+git-repository-url = "https://github.com/chipsalliance/caliptra-dpe"
+preferred-dark-theme = "coal"
+
+[output.html.search]
+boost-hierarchy = 1
+boost-paragraph = 1
+boost-title = 2
+enable = true
+expand = true
+heading-split-level = 3
+limit-results = 30
+use-boolean-and = true

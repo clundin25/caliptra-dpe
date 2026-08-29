@@ -3,7 +3,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use caliptra_dpe_dice_asn1::{FwidWriter, TcbInfoWriter, Ueid};
 use clap::{Parser, ValueEnum};
-use hex;
 
 use std::fs;
 use std::io::Write;
